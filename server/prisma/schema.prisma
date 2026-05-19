@@ -41,6 +41,7 @@ enum AttendanceStatus {
   LATE
   ABSENT
   HALF_DAY
+  ON_LEAVE
 }
 
 enum SyncStatus {
@@ -52,6 +53,7 @@ enum SyncStatus {
 enum AttendanceSource {
   KIOSK  // recorded via selfie kiosk or offline sync
   MANUAL // created by admin/manager through the portal
+  AUTO   // system-generated (e.g. auto-absent cron job)
 }
 
 enum LeaveStatus {

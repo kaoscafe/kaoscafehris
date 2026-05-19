@@ -78,13 +78,13 @@ export interface PortalAttendance {
   date: string;
   clockIn: string;
   clockOut: string | null;
-  status: "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY";
+  status: "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY" | "ON_LEAVE";
   hoursWorked: string | null;
   overtimeHours: string | null;
   lateMinutes: number | null;
   undertimeMinutes: number | null;
   remarks: string | null;
-  source: "KIOSK" | "MANUAL";
+  source: "KIOSK" | "MANUAL" | "AUTO";
   branch: PortalBranch;
 }
 

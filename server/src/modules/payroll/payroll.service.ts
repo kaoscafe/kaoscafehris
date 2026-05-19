@@ -438,9 +438,30 @@ export async function processRun(id: string) {
       employeeId: { in: employeeIds },
       date: { gte: run.periodStart, lte: run.periodEnd },
     },
-    select: { employeeId: true, date: true, clockIn: true, clockOut: true, hoursWorked: true, overtimeHours: true, lateMinutes: true, source: true },
+    select: { employeeId: true, date: true, clockIn: true, clockOut: true, hoursWorked: true, overtimeHours: true, lateMinutes: true, source: true, status: true },
     orderBy: [{ clockIn: "asc" }],
   });
+
+  // Fetch approved leaves to determine paid vs unpaid for ON_LEAVE records.
+  const approvedLeaves = await prisma.leaveRequest.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      status: "APPROVED",
+      startDate: { lte: run.periodEnd },
+      endDate: { gte: run.periodStart },
+    },
+    select: { employeeId: true, startDate: true, endDate: true, leaveType: true },
+  });
+
+  // Build a map of "employeeId:dateKey" → leaveType for O(1) lookup.
+  const leaveTypeMap = new Map<string, string>();
+  for (const leave of approvedLeaves) {
+    const start = new Date(leave.startDate);
+    const end = new Date(leave.endDate);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      leaveTypeMap.set(`${leave.employeeId}:${d.toISOString().slice(0, 10)}`, leave.leaveType);
+    }
+  }
 
   // For MANUAL attendance records that have no matching ShiftAssignment (e.g., created before
   // the automatic ShiftAssignment creation was added), look up published shifts for the branch
@@ -449,7 +470,7 @@ export async function processRun(id: string) {
   {
     const manualNoShiftMap = new Map<string, Set<string>>();
     for (const rec of attendanceRows) {
-      if (rec.source !== "MANUAL") continue;
+      if (rec.source !== "MANUAL" && rec.source !== "AUTO") continue;
       const dateKey = rec.date.toISOString().slice(0, 10);
       if (scheduledDatesMap.get(rec.employeeId)?.has(dateKey)) continue;
       if (!manualNoShiftMap.has(rec.employeeId)) manualNoShiftMap.set(rec.employeeId, new Set());
@@ -535,8 +556,28 @@ export async function processRun(id: string) {
 
     // Kiosk and admin-created (MANUAL) records are always counted regardless of schedule.
     // Shift generation commonly excludes holidays, so records on holidays count too.
-    if (!hasShift && rec.source !== "MANUAL" && rec.source !== "KIOSK" && !periodHolidayDateKeys.has(dateKey)) {
+    if (!hasShift && rec.source !== "MANUAL" && rec.source !== "AUTO" && rec.source !== "KIOSK" && !periodHolidayDateKeys.has(dateKey)) {
       console.log(`[payroll:att] SKIP emp=${rec.employeeId} date=${dateKey} hasShift=${hasShift} source=${rec.source} isHoliday=${periodHolidayDateKeys.has(dateKey)}`);
+      continue;
+    }
+
+    // ABSENT records contribute 0 hours and 0 late minutes.
+    if (rec.status === "ABSENT") {
+      if (!attendanceDateMap.has(rec.employeeId)) attendanceDateMap.set(rec.employeeId, new Map());
+      attendanceDateMap.get(rec.employeeId)!.set(dateKey, { hoursWorked: 0, lateMinutes: 0, isOvernight: false });
+      console.log(`[payroll:att] ABSENT emp=${rec.employeeId} date=${dateKey} — 0 hours counted`);
+      continue;
+    }
+
+    // ON_LEAVE: unpaid leave = 0 pay; paid leave (vacation, sick, etc.) = full scheduled hours.
+    if (rec.status === "ON_LEAVE") {
+      const leaveType = leaveTypeMap.get(`${rec.employeeId}:${dateKey}`);
+      const isUnpaid = leaveType === "UNPAID";
+      const creditedHrs = isUnpaid ? 0 : (scheduledHoursMap.get(rec.employeeId)?.get(dateKey) ?? 0);
+      if (!attendanceDateMap.has(rec.employeeId)) attendanceDateMap.set(rec.employeeId, new Map());
+      attendanceDateMap.get(rec.employeeId)!.set(dateKey, { hoursWorked: creditedHrs, lateMinutes: 0, isOvernight: false });
+      hoursWorkedMap.set(rec.employeeId, (hoursWorkedMap.get(rec.employeeId) ?? 0) + creditedHrs);
+      console.log(`[payroll:att] ON_LEAVE emp=${rec.employeeId} date=${dateKey} leaveType=${leaveType ?? "?"} creditedHrs=${creditedHrs}`);
       continue;
     }
 

@@ -1,8 +1,8 @@
 import api from "@/lib/api";
 
-export type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY";
+export type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "HALF_DAY" | "ON_LEAVE";
 export type SyncStatus = "PENDING" | "SYNCED" | "FAILED";
-export type AttendanceSource = "KIOSK" | "MANUAL";
+export type AttendanceSource = "KIOSK" | "MANUAL" | "AUTO";
 
 export interface AttendanceRecord {
   id: string;

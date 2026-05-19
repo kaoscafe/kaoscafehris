@@ -351,6 +351,27 @@ export async function checkAbsentEmployees() {
       existingRecords.map((r) => `${r.employeeId}:${r.date.toISOString().slice(0, 10)}`),
     );
 
+    // Fetch approved leaves for all relevant employees covering the date range.
+    const approvedLeaves = await prisma.leaveRequest.findMany({
+      where: {
+        employeeId: { in: [...allEmployeeIds] },
+        status: "APPROVED",
+        startDate: { lte: todayUTC },
+        endDate: { gte: yesterdayUTC },
+      },
+      select: { employeeId: true, startDate: true, endDate: true },
+    });
+
+    // Build a set of "employeeId:dateKey" for dates covered by approved leaves.
+    const leaveDateKeys = new Set<string>();
+    for (const leave of approvedLeaves) {
+      const start = new Date(leave.startDate);
+      const end = new Date(leave.endDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        leaveDateKeys.add(`${leave.employeeId}:${d.toISOString().slice(0, 10)}`);
+      }
+    }
+
     const processed = new Set<string>();
     let created = 0;
 
@@ -372,6 +393,7 @@ export async function checkAbsentEmployees() {
         if (recordKeys.has(`${eid}:${dateKey}`)) continue;
 
         const branchId = assignment.assignedBranchId ?? assignment.employee.branchId;
+        const onLeave = leaveDateKeys.has(`${eid}:${dateKey}`);
 
         // clockIn is set to midnight PHT (00:00 local) so the UI displays 12:00 AM.
         // shift.date is midnight UTC; the ISO date string always equals the local date
@@ -385,15 +407,15 @@ export async function checkAbsentEmployees() {
             branchId,
             date: shift.date,
             clockIn: midnightPht,
-            status: "ABSENT",
-            source: "MANUAL",
+            status: onLeave ? "ON_LEAVE" : "ABSENT",
+            source: "AUTO",
             syncStatus: "SYNCED",
           },
         });
 
         processed.add(processedKey);
         created++;
-        console.log(`[scheduler] Auto-marked absent: ${eid} (shift: ${shift.name}, date: ${dateKey})`);
+        console.log(`[scheduler] Auto-marked ${onLeave ? "on-leave" : "absent"}: ${eid} (shift: ${shift.name}, date: ${dateKey})`);
       }
     }
 

@@ -32,7 +32,7 @@ const schema = z.object({
   date: z.string().min(1, "Required"),
   clockInTime: z.string().min(1, "Required"),
   clockOutTime: z.string().optional(),
-  status: z.enum(["AUTO", "ABSENT", "HALF_DAY"]),
+  status: z.enum(["AUTO", "ABSENT", "HALF_DAY", "ON_LEAVE"]),
   remarks: z.string().max(500).optional(),
 });
 
@@ -100,7 +100,7 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
       date: isoToDateStr(record.clockIn, tz),
       clockInTime: isoToTimeStr(record.clockIn, tz),
       clockOutTime: isoToTimeStr(record.clockOut, tz),
-      status: (record.status === "ABSENT" || record.status === "HALF_DAY") ? record.status : "AUTO",
+      status: (record.status === "ABSENT" || record.status === "HALF_DAY" || record.status === "ON_LEAVE") ? record.status : "AUTO",
       remarks: record.remarks ?? "",
     });
   }, [open, record, reset, tz]);
@@ -297,6 +297,7 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
             <option value="AUTO">Auto (Late / Present)</option>
             <option value="ABSENT">Absent</option>
             <option value="HALF_DAY">Half-day</option>
+            <option value="ON_LEAVE">On Leave</option>
           </Select>
           <p className="text-xs text-muted-foreground">
             Auto computes Late or Present from clock-in vs shift start. Set manually only for Absent or Half-day.

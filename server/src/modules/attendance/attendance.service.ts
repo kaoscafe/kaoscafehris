@@ -370,7 +370,7 @@ export async function clockIn(input: ClockInInput, options?: { skipOpenRecordGua
       employeeId: input.employeeId,
       date: effectiveDateKey,
       status: "ABSENT",
-      source: "MANUAL",
+      source: { in: ["MANUAL", "AUTO"] },
       clockIn: midnightPht,
     },
   });
@@ -609,8 +609,8 @@ export async function manualAdjust(id: string, input: ManualAdjustInput) {
     data.undertimeMinutes = null;
   }
 
-  // ABSENT and HALF_DAY are admin-only overrides; LATE/PRESENT are always auto-computed.
-  if (input.status === "ABSENT" || input.status === "HALF_DAY") {
+  // ABSENT, HALF_DAY, and ON_LEAVE are admin-only overrides; LATE/PRESENT are always auto-computed.
+  if (input.status === "ABSENT" || input.status === "HALF_DAY" || input.status === "ON_LEAVE") {
     data.status = input.status;
     data.lateMinutes = null;
   } else {

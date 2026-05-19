@@ -27,7 +27,7 @@ function formatDate(iso: string, tz: string) {
 }
 
 function formatClockIn(r: AttendanceRecord, tz: string): string {
-  if (r.status === "ABSENT" && r.source === "MANUAL") {
+  if ((r.status === "ABSENT" || r.status === "ON_LEAVE") && (r.source === "MANUAL" || r.source === "AUTO")) {
     const local = new Date(r.clockIn).toLocaleTimeString("en-US", {
       hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
     });
@@ -54,6 +54,7 @@ function StatusBadge({ status, hasClockOut }: { status: AttendanceStatus; hasClo
     case "PRESENT": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#edf6ea", color: GREEN }}>On Time</span>;
     case "LATE": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#fdf0e0", color: AMBER }}>Late</span>;
     case "ABSENT": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#fce9e9", color: BRAND }}>Absent</span>;
+    case "ON_LEAVE": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#f3e8ff", color: PURPLE }}>On Leave</span>;
     case "HALF_DAY": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#f3e8ff", color: PURPLE }}>On Leave</span>;
     default: return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">{status}</span>;
   }
@@ -148,7 +149,7 @@ const apiStatus = (statusFilter === "LATE" ? "LATE" : statusFilter === "ABSENT" 
     present: records.filter(r => r.status === "PRESENT" && r.clockOut).length,
     late: records.filter(r => r.status === "LATE").length,
     absent: records.filter(r => r.status === "ABSENT").length,
-    onLeave: records.filter(r => r.status === "HALF_DAY").length,
+    onLeave: records.filter(r => r.status === "HALF_DAY" || r.status === "ON_LEAVE").length,
     ongoing: records.filter(r => (r.status === "PRESENT" || r.status === "LATE") && !r.clockOut).length,
   };
 

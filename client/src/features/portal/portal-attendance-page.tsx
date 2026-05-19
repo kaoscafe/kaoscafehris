@@ -5,6 +5,7 @@ import { formatLocalTime, getMyAttendance, type PortalAttendance } from "./porta
 import { COMPANY_TZ } from "@/lib/timezone";
 
 const BRAND = "#8C1515";
+const PURPLE = "#7C3AED";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -25,7 +26,14 @@ function StatusBadge({ record }: { record: PortalAttendance }) {
   if (record.status === "ABSENT") {
     return (
       <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#FCE7F3", color: "#9D174D" }}>
-        Leave
+        Absent
+      </span>
+    );
+  }
+  if (record.status === "ON_LEAVE") {
+    return (
+      <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#F3E8FF", color: PURPLE }}>
+        On Leave
       </span>
     );
   }

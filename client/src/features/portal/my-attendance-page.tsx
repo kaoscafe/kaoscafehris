@@ -38,6 +38,8 @@ function statusBadge(status: PortalAttendance["status"]) {
       return <Badge variant="warn">Late</Badge>;
     case "ABSENT":
       return <Badge variant="destructive">Absent</Badge>;
+    case "ON_LEAVE":
+      return <Badge variant="muted">On Leave</Badge>;
     case "HALF_DAY":
       return <Badge variant="muted">Half day</Badge>;
   }

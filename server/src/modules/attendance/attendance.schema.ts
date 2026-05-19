@@ -24,7 +24,7 @@ export const clockOutSchema = z.object({
 export const manualAdjustSchema = z.object({
   clockIn: isoDateTime.optional(),
   clockOut: isoDateTime.nullable().optional(),
-  status: z.enum(["PRESENT", "LATE", "ABSENT", "HALF_DAY"]).optional(),
+  status: z.enum(["PRESENT", "LATE", "ABSENT", "HALF_DAY", "ON_LEAVE"]).optional(),
   remarks: z.string().max(500).nullable().optional(),
   hoursWorked: z.number().min(0).max(24).nullable().optional(),
   overtimeHours: z.number().min(0).max(24).nullable().optional(),
@@ -39,7 +39,7 @@ export const listAttendanceQuerySchema = z
     date: isoDate.optional(),
     startDate: isoDate.optional(),
     endDate: isoDate.optional(),
-    status: z.enum(["PRESENT", "LATE", "ABSENT", "HALF_DAY"]).optional(),
+    status: z.enum(["PRESENT", "LATE", "ABSENT", "HALF_DAY", "ON_LEAVE"]).optional(),
   })
   .refine(
     (v) => !(v.date && (v.startDate || v.endDate)),
