@@ -158,7 +158,7 @@ function ShiftCard({
     : { bg: "#fdf0e0", color: "#a06010", label: "Not Yet Timed In" };
 
   return (
-    <div style={{ background: "#fff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)" }}>
+    <div style={{ background: "#fff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
       {/* Employee greeting */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ color: ROSE, fontSize: 13 }}>{greeting()},</div>
@@ -219,7 +219,7 @@ function CameraView({
   videoRef, onCapture, isClockedIn, cameraReady, cameraError,
 }: { videoRef: React.RefObject<HTMLVideoElement | null>; onCapture: () => void; isClockedIn: boolean; cameraReady: boolean; cameraError: boolean }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)" }}>
+    <div style={{ background: "#fff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: NEAR_BLACK, marginBottom: 14 }}>Photo Attendance</div>
 
       <div style={{ borderRadius: 14, overflow: "hidden", position: "relative", background: NEAR_BLACK, aspectRatio: "4/3" }}>
