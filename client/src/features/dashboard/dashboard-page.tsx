@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Clock, Users } from "lucide-react";
-import { Select } from "@/components/ui/select";
+
 import { useAuthStore } from "@/features/auth/auth.store";
-import { listBranches } from "@/features/branches/branches.api";
+
 import { listEmployees } from "@/features/employees/employees.api";
 import { listAttendance } from "@/features/attendance/attendance.api";
 import { listRequests } from "@/features/leave/leave.api";
@@ -84,16 +84,11 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "ADMIN";
   const isAdminOrManager = isAdmin || user?.role === "MANAGER";
-  const [branchFilter, setBranchFilter] = useState("");
+
 
   const tz = COMPANY_TZ;
   const today = useMemo(() => todayIsoLocal(tz), [tz]);
 
-  const branchesQuery = useQuery({
-    queryKey: ["branches", {}],
-    queryFn: () => listBranches(),
-    enabled: isAdmin,
-  });
 
   const employeesQuery = useQuery({
     queryKey: ["employees", {}],
@@ -187,7 +182,7 @@ export default function DashboardPage() {
     ? `${user.employee.firstName} ${user.employee.lastName}`
     : user?.email?.split("@")[0] ?? "User";
 
-  const branches = branchesQuery.data ?? [];
+
   const attendanceData = todayAttendanceQuery.data ?? [];
 
   const recentActivity = attendanceData
@@ -264,27 +259,6 @@ export default function DashboardPage() {
           />
         </div>
       )}
-
-      {/* Filters strip */}
-      <div className="animate-fade-up stagger-3 flex flex-wrap items-center gap-3 rounded-2xl bg-white px-5 py-3.5 shadow-sm">
-        <span className="text-xs font-semibold uppercase tracking-widest text-gray-300">Filter</span>
-        <div className="h-4 w-px bg-gray-100" />
-        <select className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-primary">
-          <option>Today</option>
-          <option>This Week</option>
-          <option>This Month</option>
-        </select>
-        <Select
-          value={branchFilter}
-          onChange={(e) => setBranchFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-primary"
-        >
-          <option value="">All Branches</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </Select>
-      </div>
 
       {/* Charts row */}
       <div className="grid gap-4 lg:grid-cols-2">
