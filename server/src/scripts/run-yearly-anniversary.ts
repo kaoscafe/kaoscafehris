@@ -60,7 +60,7 @@ function milestoneYearlyHtml(employees: { name: string; employeeId: string; posi
     </div>`;
 }
 
-async function run() {
+export async function runYearlyAnniversary() {
   const tz = COMPANY_TZ;
   const today = getDateParts(new Date(), tz);
 
@@ -122,6 +122,9 @@ async function run() {
   console.log(`Work anniversary email sent for: ${names}`);
 }
 
-run()
-  .then(() => { console.log("Done."); process.exit(0); })
-  .catch((err) => { console.error(err); process.exit(1); });
+// Run directly via `npx tsx src/scripts/run-yearly-anniversary.ts`
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("run-yearly-anniversary.ts")) {
+  runYearlyAnniversary()
+    .then(() => { console.log("Done."); process.exit(0); })
+    .catch((err) => { console.error(err); process.exit(1); });
+}
