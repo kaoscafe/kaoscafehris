@@ -143,8 +143,8 @@ function IdEntryScreen({
 // ─── Screen 2: Main (Shift + Camera) ─────────────────────────────────────────
 
 function ShiftCard({
-  employeeName, shift, attendance, lastClockIn,
-}: { employeeName: string; shift: KioskShift | null; attendance: KioskAttendance | null; lastClockIn: { date: string; clockIn: string } | null }) {
+  employeeName, branchName, shift, attendance, lastClockIn,
+}: { employeeName: string; branchName: string; shift: KioskShift | null; attendance: KioskAttendance | null; lastClockIn: { date: string; clockIn: string } | null }) {
   const isClockedIn = !!attendance && !attendance.clockOut;
   const isDone = !!attendance?.clockOut;
   const now = useLiveClock();
@@ -184,7 +184,7 @@ function ShiftCard({
               <Clock size={16} color={BRAND} />
             </div>
             <div>
-              <div style={{ fontSize: 14, color: "#222", fontWeight: 600 }}>{shift.startTime} – {shift.endTime}</div>
+              <div style={{ fontSize: 14, color: "#222", fontWeight: 600 }}>{shift.name} · {shift.startTime} – {shift.endTime}</div>
               <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Scheduled hours</div>
             </div>
           </div>
@@ -193,7 +193,7 @@ function ShiftCard({
               <Building2 size={16} color={BRAND} />
             </div>
             <div>
-              <div style={{ fontSize: 14, color: "#555" }}>{shift.name}</div>
+              <div style={{ fontSize: 14, color: "#555" }}>{branchName}</div>
               <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Branch</div>
             </div>
           </div>
@@ -310,7 +310,7 @@ function MainScreen({
           {/* Left column: shift info */}
           <div>
             {isStale || (!isDone && shift) ? (
-              <ShiftCard employeeName={`${employee.firstName} ${employee.lastName}`} shift={shift} attendance={attendance} lastClockIn={lastClockIn} />
+              <ShiftCard employeeName={`${employee.firstName} ${employee.lastName}`} branchName={employee.branch.name} shift={shift} attendance={attendance} lastClockIn={lastClockIn} />
             ) : !isDone && !shift ? (
               <div style={{ background: "#fff", borderRadius: 16, padding: "40px 24px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 280 }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
