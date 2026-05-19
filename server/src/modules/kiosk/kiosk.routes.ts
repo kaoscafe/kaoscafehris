@@ -142,7 +142,7 @@ router.get("/status/:employeeId", async (req, res, next) => {
     const shiftDate = attendance ? attendance.date : dateKey;
     const assignment = await prisma.shiftAssignment.findFirst({
       where: { employeeId: emp.id, shift: { date: shiftDate } },
-      include: { shift: true },
+      include: { shift: { include: { branch: { select: { id: true, name: true } } } } },
       orderBy: { shift: { startTime: "asc" } },
     });
 
@@ -184,6 +184,7 @@ router.get("/status/:employeeId", async (req, res, next) => {
               startTime: formatTime(assignment.shift.startTime),
               endTime: formatTime(assignment.shift.endTime),
               date: assignment.shift.date.toISOString().slice(0, 10),
+              branch: { id: assignment.shift.branch.id, name: assignment.shift.branch.name },
             }
           : null,
         attendance: attendance

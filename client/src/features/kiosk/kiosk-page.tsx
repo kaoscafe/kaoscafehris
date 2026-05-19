@@ -49,12 +49,13 @@ function KioskHeader({ name }: { name?: string }) {
 
   return (
     <header style={{ background: `linear-gradient(160deg, ${DARK} 0%, ${BRAND} 100%)`, padding: "16px 32px", flexShrink: 0 }}>
-      <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", justifyContent: name ? "space-between" : "center", alignItems: "center" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <img src="/kaos-logo.svg" alt="KAOS" style={{ height: 44, width: "auto", filter: "brightness(0) invert(1)", opacity: 0.9 }} />
         {name && (
-          <div>
+          <div style={{ textAlign: "right" }}>
             <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>{greeting()},</div>
             <div style={{ color: "#fff", fontSize: 24, fontWeight: 800, letterSpacing: -0.3, marginTop: 1 }}>{name}</div>
-            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5, justifyContent: "flex-end" }}>
               <Clock size={13} color="rgba(255,255,255,0.5)" />
               <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
                 {timeStr} · {dateStr}
@@ -62,7 +63,6 @@ function KioskHeader({ name }: { name?: string }) {
             </div>
           </div>
         )}
-        <img src="/kaos-logo.svg" alt="KAOS" style={{ height: 44, width: "auto", filter: "brightness(0) invert(1)", opacity: 0.9 }} />
       </div>
     </header>
   );
@@ -143,8 +143,8 @@ function IdEntryScreen({
 // ─── Screen 2: Main (Shift + Camera) ─────────────────────────────────────────
 
 function ShiftCard({
-  employeeName, branchName, shift, attendance, lastClockIn,
-}: { employeeName: string; branchName: string; shift: KioskShift | null; attendance: KioskAttendance | null; lastClockIn: { date: string; clockIn: string } | null }) {
+  employeeName, shift, attendance, lastClockIn,
+}: { employeeName: string; shift: KioskShift | null; attendance: KioskAttendance | null; lastClockIn: { date: string; clockIn: string } | null }) {
   const isClockedIn = !!attendance && !attendance.clockOut;
   const isDone = !!attendance?.clockOut;
   const now = useLiveClock();
@@ -193,7 +193,7 @@ function ShiftCard({
               <Building2 size={16} color={BRAND} />
             </div>
             <div>
-              <div style={{ fontSize: 14, color: "#555" }}>{branchName}</div>
+              <div style={{ fontSize: 14, color: "#555" }}>{shift.branch.name}</div>
               <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Branch</div>
             </div>
           </div>
@@ -310,7 +310,7 @@ function MainScreen({
           {/* Left column: shift info */}
           <div>
             {isStale || (!isDone && shift) ? (
-              <ShiftCard employeeName={`${employee.firstName} ${employee.lastName}`} branchName={employee.branch.name} shift={shift} attendance={attendance} lastClockIn={lastClockIn} />
+              <ShiftCard employeeName={`${employee.firstName} ${employee.lastName}`} shift={shift} attendance={attendance} lastClockIn={lastClockIn} />
             ) : !isDone && !shift ? (
               <div style={{ background: "#fff", borderRadius: 16, padding: "40px 24px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 280 }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>

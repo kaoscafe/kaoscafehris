@@ -12,6 +12,7 @@ export interface KioskEmployee {
 export interface KioskShift {
   id: string; name: string;
   startTime: string; endTime: string; date: string;
+  branch: KioskBranch;
 }
 
 export interface KioskAttendance {
