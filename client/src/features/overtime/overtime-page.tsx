@@ -502,8 +502,9 @@ export default function OvertimePage() {
       );
     } else if (statusFilter === "APPROVED") {
       combined = combined.filter(
-        (r) => (r.kind === "request" && r.data.status === "APPROVED") ||
-               (r.kind === "attendance-ot" && r.data.overtimeApproved)
+        (r) => r.kind === "schedule" ||
+            (r.kind === "request" && r.data.status === "APPROVED") ||
+            (r.kind === "attendance-ot" && r.data.overtimeApproved)
       );
     } else if (statusFilter === "REJECTED") {
       combined = combined.filter(
