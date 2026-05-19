@@ -150,66 +150,91 @@ function ShiftCard({
   const now = useLiveClock();
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: COMPANY_TZ });
   const dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: COMPANY_TZ });
+  const initials = employeeName.split(" ").map((n) => n[0]).join("");
 
   const badge = isDone
-    ? { bg: "#dcfce7", color: "#15803d", label: "Timed Out" }
+    ? { bg: "#dcfce7", color: "#15803d", dot: "#15803d", label: "Timed Out" }
     : isClockedIn
-    ? { bg: "#fef3c7", color: "#92400e", label: "Timed In" }
-    : { bg: "#fdf0e0", color: "#a06010", label: "Not Yet Timed In" };
+    ? { bg: "#fef3c7", color: "#92400e", dot: "#f59e0b", label: "Timed In" }
+    : { bg: "#fdf0e0", color: "#a06010", dot: "#f97316", label: "Not Yet Timed In" };
 
   return (
-    <div style={{ background: "#fff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-      {/* Employee greeting */}
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ color: ROSE, fontSize: 13 }}>{greeting()},</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: NEAR_BLACK, letterSpacing: -0.3, marginTop: 1 }}>{employeeName}</div>
-        <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
-          <Clock size={13} color={ROSE} />
-          <span style={{ fontSize: 13, color: "#888", fontVariantNumeric: "tabular-nums" }}>
-            {timeStr} · {dateStr}
-          </span>
+    <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
+      {/* Top accent bar */}
+      <div style={{ height: 4, background: `linear-gradient(90deg, ${BRAND}, #c0392b, ${ROSE})`, flexShrink: 0 }} />
+
+      <div style={{ padding: "24px 24px 0", flexShrink: 0 }}>
+        {/* Employee greeting with avatar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: `linear-gradient(135deg, ${BRAND}, ${DARK})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, letterSpacing: 0.5 }}>
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: ROSE, fontSize: 12, fontWeight: 500 }}>{greeting()},</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: NEAR_BLACK, letterSpacing: -0.2, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{employeeName}</div>
+            <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
+              <Clock size={12} color={ROSE} />
+              <span style={{ fontSize: 12, color: "#999", fontVariantNumeric: "tabular-nums" }}>
+                {timeStr} · {dateStr}
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* Section divider */}
+        <div style={{ borderTop: `1px solid #f3e8e8`, marginBottom: 18 }} />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: NEAR_BLACK }}>Today's Shift</span>
-        <span style={{ fontSize: 11, fontWeight: 700, background: badge.bg, color: badge.color, borderRadius: 20, padding: "4px 14px", letterSpacing: 0.3 }}>
-          {badge.label}
-        </span>
-      </div>
-      {shift ? (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Clock size={16} color={BRAND} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, color: "#222", fontWeight: 600 }}>{shift.name} · {shift.startTime} – {shift.endTime}</div>
-              <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Scheduled hours</div>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Building2 size={16} color={BRAND} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, color: "#555" }}>{shift.branch.name}</div>
-              <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Branch</div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div style={{ padding: "16px 0", textAlign: "center" }}>
-          <Calendar size={32} color="#ccc" style={{ margin: "0 auto 8px" }} />
-          <p style={{ fontSize: 14, color: "#999", margin: 0 }}>No shift scheduled for today.</p>
+      {/* Shift details */}
+      <div style={{ padding: "0 24px", flex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: ROSE, textTransform: "uppercase", letterSpacing: 0.5 }}>Today's Shift</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, background: badge.bg, color: badge.color, borderRadius: 20, padding: "4px 12px", letterSpacing: 0.2 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.dot, flexShrink: 0 }} />
+            {badge.label}
+          </span>
         </div>
-      )}
-      <div style={{ borderTop: "1px solid #f0e6e6", marginTop: 16, paddingTop: 14, fontSize: 12, color: "#aaa" }}>
-        {lastClockIn
-          ? `Last clock-in: ${fmtDate(lastClockIn.date)} at ${fmtTime(lastClockIn.clockIn)}`
-          : isClockedIn
-          ? `Clocked in at ${fmtTime(attendance!.clockIn)}`
-          : "No previous clock-in on record"}
+        {shift ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fdf8f8", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Clock size={18} color={BRAND} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, color: NEAR_BLACK, fontWeight: 600 }}>{shift.name}</div>
+                <div style={{ fontSize: 13, color: "#666", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>{shift.startTime} – {shift.endTime}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fdf8f8", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Building2 size={18} color={BRAND} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, color: NEAR_BLACK, fontWeight: 600 }}>{shift.branch.name}</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Branch</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: "20px 0", textAlign: "center", background: "#fdf8f8", borderRadius: 12 }}>
+            <Calendar size={36} color="#ccc" style={{ margin: "0 auto 10px" }} />
+            <p style={{ fontSize: 14, color: "#999", margin: 0, fontWeight: 500 }}>No shift scheduled for today.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
+        <div style={{ borderTop: "1px solid #f3e8e8", marginTop: 16, paddingTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
+          <Clock size={12} color="#ccc" />
+          <span style={{ fontSize: 12, color: "#aaa" }}>
+            {lastClockIn
+              ? `Last clock-in: ${fmtDate(lastClockIn.date)} at ${fmtTime(lastClockIn.clockIn)}`
+              : isClockedIn
+              ? `Clocked in at ${fmtTime(attendance!.clockIn)}`
+              : "No previous clock-in on record"}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -294,7 +319,7 @@ function MainScreen({
   const isStale = !!staleShiftEnd && isClockedIn;
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#faf7f7", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #fdfbfb 0%, #faf6f6 40%, #f7efef 100%)", fontFamily: "'Inter', sans-serif" }}>
       <KioskHeader />
 
       <div style={{ flex: 1, maxWidth: 960, margin: "0 auto", width: "100%", padding: "32px 24px", boxSizing: "border-box" }}>
@@ -391,7 +416,7 @@ function ConfirmScreen({
     : { bg: "#dcfce7", color: "#166534", icon: "#15803d", label: "Time In" };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#faf7f7", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #fdfbfb 0%, #faf6f6 40%, #f7efef 100%)", fontFamily: "'Inter', sans-serif" }}>
       <KioskHeader name={`${employee.firstName} ${employee.lastName}`} />
 
       <div style={{ flex: 1, maxWidth: 560, margin: "0 auto", width: "100%", padding: "32px 24px", boxSizing: "border-box" }}>
