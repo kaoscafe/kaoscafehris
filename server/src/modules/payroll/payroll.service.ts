@@ -158,9 +158,12 @@ export async function listRuns(query: ListPayrollRunsQuery) {
   if (query.branchId) where.branchId = query.branchId;
   if (query.status) where.status = query.status;
   if (query.periodStart || query.periodEnd) {
-    where.periodStart = {};
-    if (query.periodStart) where.periodStart.gte = dateOnly(query.periodStart);
-    if (query.periodEnd) where.periodStart.lte = dateOnly(query.periodEnd);
+    if (query.periodStart) {
+      where.periodStart = { gte: dateOnly(query.periodStart) };
+    }
+    if (query.periodEnd) {
+      where.periodEnd = { lte: dateOnly(query.periodEnd) };
+    }
   }
 
   return prisma.payrollRun.findMany({

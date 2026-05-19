@@ -8,6 +8,7 @@ import { listEmployees } from "@/features/employees/employees.api";
 import { listAttendance } from "@/features/attendance/attendance.api";
 import { listRequests } from "@/features/leave/leave.api";
 import { getPayrollReport } from "@/features/reports/report.api";
+import { extractErrorMessage } from "@/lib/api";
 import { COMPANY_TZ, todayIsoLocal } from "@/lib/timezone";
 
 const BRAND = "#8C1515";
@@ -143,7 +144,8 @@ export default function DashboardPage() {
       dateMap.set(date, { present: 0, late: 0, absent: 0 });
     }
     records.forEach(r => {
-      const date = r.date || today;
+      // r.date is a full ISO datetime from the API; extract the date-only part
+      const date = r.date?.slice(0, 10) || today;
       const entry = dateMap.get(date) || { present: 0, late: 0, absent: 0 };
       if (r.status === "PRESENT") entry.present++;
       else if (r.status === "LATE") { entry.present++; entry.late++; }
@@ -160,8 +162,8 @@ export default function DashboardPage() {
     const monthMap = new Map<number, { gross: number; net: number; deductions: number }>();
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     for (const run of runs) {
-      const d = new Date(run.periodStart + "T00:00:00");
-      const m = d.getUTCMonth();
+      // Parse periodStart as UTC date to avoid browser-local timezone skew
+      const m = parseInt(run.periodStart.split("-")[1], 10) - 1; // zero-indexed month
       const entry = monthMap.get(m) ?? { gross: 0, net: 0, deductions: 0 };
       entry.gross += run.totalGross;
       entry.net += run.totalNet;
@@ -309,6 +311,8 @@ export default function DashboardPage() {
           </div>
           {payrollReportQuery.isLoading ? (
             <p className="text-sm text-gray-400">Loading...</p>
+          ) : payrollReportQuery.isError ? (
+            <p className="text-sm text-red-500">{extractErrorMessage(payrollReportQuery.error, "Failed to load payroll data")}</p>
           ) : (
             <LineChart data={payrollChartData} />
           )}
