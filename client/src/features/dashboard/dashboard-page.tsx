@@ -7,6 +7,7 @@ import { listBranches } from "@/features/branches/branches.api";
 import { listEmployees } from "@/features/employees/employees.api";
 import { listAttendance } from "@/features/attendance/attendance.api";
 import { listRequests } from "@/features/leave/leave.api";
+import { getPayrollReport } from "@/features/reports/report.api";
 import { COMPANY_TZ, todayIsoLocal } from "@/lib/timezone";
 
 const BRAND = "#8C1515";
@@ -112,6 +113,18 @@ export default function DashboardPage() {
     enabled: isAdmin,
   });
 
+  const sixMonthsAgo = useMemo(() => {
+    const [y, m] = today.split("-").map(Number);
+    const d = new Date(Date.UTC(y, m - 7, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  }, [today]);
+
+  const payrollReportQuery = useQuery({
+    queryKey: ["reports", "payroll", { periodStart: sixMonthsAgo, periodEnd: today }],
+    queryFn: () => getPayrollReport({ periodStart: sixMonthsAgo, periodEnd: today }),
+    enabled: isAdmin,
+  });
+
   const totalEmployees =
     employeesQuery.data?.filter((e) => e.position !== "Administrator").length ?? 0;
   const presentToday =
@@ -133,7 +146,7 @@ export default function DashboardPage() {
       const date = r.date || today;
       const entry = dateMap.get(date) || { present: 0, late: 0, absent: 0 };
       if (r.status === "PRESENT") entry.present++;
-      else if (r.status === "LATE") entry.late++;
+      else if (r.status === "LATE") { entry.present++; entry.late++; }
       else if (r.status === "ABSENT") entry.absent++;
       dateMap.set(date, entry);
     });
@@ -142,15 +155,23 @@ export default function DashboardPage() {
     }));
   }, [weekAttendanceQuery.data]);
 
-  const payrollChartData = [
-    { month: "Oct", gross: 280, net: 230, deductions: 50 },
-    { month: "Nov", gross: 295, net: 245, deductions: 50 },
-    { month: "Dec", gross: 310, net: 258, deductions: 52 },
-    { month: "Jan", gross: 290, net: 240, deductions: 50 },
-    { month: "Feb", gross: 320, net: 268, deductions: 52 },
-    { month: "Mar", gross: 335, net: 278, deductions: 57 },
-    { month: "Apr", gross: 340, net: 285, deductions: 55 },
-  ];
+  const payrollChartData = useMemo(() => {
+    const runs = payrollReportQuery.data?.runs ?? [];
+    const monthMap = new Map<number, { gross: number; net: number; deductions: number }>();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    for (const run of runs) {
+      const d = new Date(run.periodStart + "T00:00:00");
+      const m = d.getUTCMonth();
+      const entry = monthMap.get(m) ?? { gross: 0, net: 0, deductions: 0 };
+      entry.gross += run.totalGross;
+      entry.net += run.totalNet;
+      entry.deductions += run.totalDeductions;
+      monthMap.set(m, entry);
+    }
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([m, vals]) => ({ month: months[m], ...vals }));
+  }, [payrollReportQuery.data]);
 
   const displayName = user?.employee
     ? `${user.employee.firstName} ${user.employee.lastName}`
@@ -284,9 +305,13 @@ export default function DashboardPage() {
         <div className="animate-fade-up stagger-5 rounded-2xl bg-white p-5 shadow-sm">
           <div className="mb-5">
             <h2 className="font-heading text-lg text-gray-900">Payroll Trend</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Monthly overview · ₱ thousands</p>
+            <p className="text-xs text-gray-400 mt-0.5">Monthly overview</p>
           </div>
-          <LineChart data={payrollChartData} />
+          {payrollReportQuery.isLoading ? (
+            <p className="text-sm text-gray-400">Loading...</p>
+          ) : (
+            <LineChart data={payrollChartData} />
+          )}
         </div>
       </div>
 
