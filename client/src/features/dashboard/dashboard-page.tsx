@@ -22,6 +22,11 @@ function daysAgoIso(today: string, days: number): string {
   return `${d2.getUTCFullYear()}-${String(d2.getUTCMonth() + 1).padStart(2, "0")}-${String(d2.getUTCDate()).padStart(2, "0")}`;
 }
 
+/** Return the Sunday (YYYY-MM-DD) of the week containing `today`. */
+function weekSundayIso(today: string): string {
+  return daysAgoIso(today, new Date(today + "T00:00:00Z").getUTCDay());
+}
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -102,9 +107,12 @@ export default function DashboardPage() {
     enabled: isAdminOrManager && !!today,
   });
 
+  const weekSunday = useMemo(() => weekSundayIso(today), [today]);
+  const weekSaturday = useMemo(() => daysAgoIso(weekSunday, -6), [weekSunday]);
+
   const weekAttendanceQuery = useQuery({
-    queryKey: ["attendance", { startDate: daysAgoIso(today, 7), endDate: today }],
-    queryFn: () => listAttendance({ startDate: daysAgoIso(today, 7), endDate: today }),
+    queryKey: ["attendance", { startDate: weekSunday, endDate: weekSaturday }],
+    queryFn: () => listAttendance({ startDate: weekSunday, endDate: weekSaturday }),
     enabled: isAdminOrManager && !!today,
   });
 
@@ -139,8 +147,8 @@ export default function DashboardPage() {
   const attendanceChartData = useMemo(() => {
     const records = weekAttendanceQuery.data ?? [];
     const dateMap = new Map<string, { present: number; late: number; absent: number }>();
-    for (let i = 6; i >= 0; i--) {
-      const date = daysAgoIso(today, i);
+    for (let i = 0; i < 7; i++) {
+      const date = daysAgoIso(weekSunday, -i);
       dateMap.set(date, { present: 0, late: 0, absent: 0 });
     }
     records.forEach(r => {
@@ -285,7 +293,7 @@ export default function DashboardPage() {
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="font-heading text-lg text-gray-900">Attendance Overview</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Last 7 days</p>
+              <p className="text-xs text-gray-400 mt-0.5">Current week</p>
             </div>
             <div className="flex gap-3">
               {[[BRAND, "Present"], [ROSE, "Late"], [AMBER, "Absent"]].map(([c, l]) => (
@@ -305,16 +313,26 @@ export default function DashboardPage() {
 
         {/* Payroll Trend */}
         <div className="animate-fade-up stagger-5 rounded-2xl bg-white p-5 shadow-sm">
-          <div className="mb-5">
-            <h2 className="font-heading text-lg text-gray-900">Payroll Trend</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Monthly overview</p>
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="font-heading text-lg text-gray-900">Payroll Trend</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Monthly overview</p>
+            </div>
+            <div className="flex gap-3">
+              {[[BRAND, "Gross"], [GREEN, "Net"], [AMBER, "Deductions"]].map(([c, l]) => (
+                <div key={l as string} className="flex items-center gap-1.5">
+                  <div className="h-2 w-2 rounded-full" style={{ background: c as string }} />
+                  <span className="text-[11px] text-gray-400">{l}</span>
+                </div>
+              ))}
+            </div>
           </div>
           {payrollReportQuery.isLoading ? (
             <p className="text-sm text-gray-400">Loading...</p>
           ) : payrollReportQuery.isError ? (
             <p className="text-sm text-red-500">{extractErrorMessage(payrollReportQuery.error, "Failed to load payroll data")}</p>
           ) : (
-            <LineChart data={payrollChartData} />
+            <PayrollBarChart data={payrollChartData} />
           )}
         </div>
       </div>
@@ -415,15 +433,25 @@ function AttendanceTrendChart({ data }: { data: Array<{ date: string; present: n
     return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
   });
 
+  const yTicks = [1, 0.67, 0.33, 0];
+
   return (
-    <div style={{ position: "relative", height: h + 36 }}>
-      {[0, 0.33, 0.67, 1].map(t => (
+    <div style={{ position: "relative", height: h + 36, paddingLeft: 32 }}>
+      {yTicks.map(t => (
         <div key={t} style={{
           position: "absolute", left: 0, right: 0, bottom: 32 + t * h,
           borderTop: t === 0 ? "1.5px solid #EEE4E4" : "1px dashed #F0EAEA",
         }} />
       ))}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: h + 28, paddingBottom: 28 }}>
+      {yTicks.map(t => (
+        <div key={`lbl-${t}`} style={{
+          position: "absolute", left: 0, bottom: 32 + t * h - 6,
+          fontSize: 9, color: "#bbb", width: 28, textAlign: "right",
+        }}>
+          {Math.round(maxV * t)}
+        </div>
+      ))}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: h + 28, paddingBottom: 28, marginLeft: 0 }}>
         {days.map((day, i) => (
           <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: h }}>
@@ -439,7 +467,7 @@ function AttendanceTrendChart({ data }: { data: Array<{ date: string; present: n
   );
 }
 
-function LineChart({ data }: { data: Array<{ month: string; gross: number; net: number; deductions: number }> }) {
+function PayrollBarChart({ data }: { data: Array<{ month: string; gross: number; net: number; deductions: number }> }) {
   if (!data || data.length === 0) {
     return <p className="text-sm text-gray-400">No payroll data available.</p>;
   }
@@ -448,56 +476,39 @@ function LineChart({ data }: { data: Array<{ month: string; gross: number; net: 
   const net = data.map(d => d.net);
   const deduct = data.map(d => d.deductions);
   const months = data.map(d => d.month);
-  const allVals = [...gross, ...net, ...deduct];
-  const maxV = Math.max(...allVals) + 20;
-  const minV = Math.min(...allVals) - 20;
-  const w = 340;
-  const h = 110;
+  const maxV = Math.max(...gross, ...net, ...deduct, 1);
+  const h = 130;
 
-  function toPoint(arr: number[]) {
-    return arr.map((v, i) => {
-      const x = 10 + (i / (arr.length - 1)) * (w - 20);
-      const y = h - ((v - minV) / (maxV - minV)) * (h - 15) - 5;
-      return `${x},${y}`;
-    }).join(" ");
-  }
+  const formatPeso = (v: number) =>
+    new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
-  const datasets = [
-    { pts: toPoint(gross), color: BRAND, label: "Gross Pay", arr: gross },
-    { pts: toPoint(net), color: GREEN, label: "Net Pay", arr: net },
-    { pts: toPoint(deduct), color: AMBER, label: "Deductions", arr: deduct },
-  ];
+  const yTicks = [1, 0.67, 0.33, 0];
 
   return (
-    <div>
-      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
-        {[0, 0.33, 0.67, 1].map(t => (
-          <line key={t} x1="0" x2={w} y1={5 + t * (h - 15)} y2={5 + t * (h - 15)}
-            stroke="#F0EAEA" strokeWidth="1" strokeDasharray={t === 1 ? "0" : "4,4"} />
-        ))}
-        {datasets.map(({ pts, color }) => (
-          <polyline key={color} points={pts} stroke={color} strokeWidth="2.5"
-            fill="none" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />
-        ))}
-        {datasets.map(({ color, arr }, di) => (
-          arr.map((v, i) => {
-            const x = 10 + (i / (arr.length - 1)) * (w - 20);
-            const y = h - ((v - minV) / (maxV - minV)) * (h - 15) - 5;
-            return (
-              <circle key={`${di}-${i}`} cx={x} cy={y} r="3.5" fill="#fff" stroke={color} strokeWidth="2" />
-            );
-          })
-        ))}
-        {months.map((m, i) => {
-          const x = 10 + (i / (months.length - 1)) * (w - 20);
-          return <text key={m} x={x} y={h} textAnchor="middle" fill="#bbb" fontSize="9" fontWeight="500">{m}</text>;
-        })}
-      </svg>
-      <div className="mt-4 flex justify-center gap-5">
-        {datasets.map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <div className="h-0.5 w-5 rounded-full" style={{ background: color }} />
-            <span className="text-[11px] text-gray-400">{label}</span>
+    <div style={{ position: "relative", height: h + 36, paddingLeft: 40 }}>
+      {yTicks.map(t => (
+        <div key={t} style={{
+          position: "absolute", left: 0, right: 0, bottom: 32 + t * h,
+          borderTop: t === 0 ? "1.5px solid #EEE4E4" : "1px dashed #F0EAEA",
+        }} />
+      ))}
+      {yTicks.map(t => (
+        <div key={`lbl-${t}`} style={{
+          position: "absolute", left: 0, bottom: 32 + t * h - 6,
+          fontSize: 9, color: "#bbb", width: 36, textAlign: "right",
+        }}>
+          {t === 0 ? "0" : formatPeso(maxV * t)}
+        </div>
+      ))}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: h + 28, paddingBottom: 28 }}>
+        {months.map((month, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: h }}>
+              <div title={`Gross Pay: ${formatPeso(gross[i])}`} style={{ width: 10, background: BRAND, borderRadius: "3px 3px 0 0", height: Math.max((gross[i] / maxV) * h, gross[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Net Pay: ${formatPeso(net[i])}`} style={{ width: 10, background: GREEN, borderRadius: "3px 3px 0 0", height: Math.max((net[i] / maxV) * h, net[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Deductions: ${formatPeso(deduct[i])}`} style={{ width: 10, background: AMBER, borderRadius: "3px 3px 0 0", height: Math.max((deduct[i] / maxV) * h, deduct[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+            </div>
+            <div style={{ fontSize: 10, color: "#bbb", marginTop: 7, fontWeight: 500 }}>{month}</div>
           </div>
         ))}
       </div>
