@@ -78,7 +78,7 @@ function AttendanceCard({ record, tz }: { record: PortalAttendance; tz: string }
         <Clock className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
         <div>
           <p className="text-sm text-gray-700">
-            {formatLocalTime(record.clockIn, tz)}
+            {record.status === "ABSENT" && record.source === "AUTO" ? "—" : formatLocalTime(record.clockIn, tz)}
             {record.clockOut ? ` – ${formatLocalTime(record.clockOut, tz)}` : ""}
           </p>
           <div className="flex gap-3 mt-0.5">

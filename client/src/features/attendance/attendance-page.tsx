@@ -27,7 +27,8 @@ function formatDate(iso: string, tz: string) {
 }
 
 function formatClockIn(r: AttendanceRecord, tz: string): string {
-  if ((r.status === "ABSENT" || r.status === "ON_LEAVE") && (r.source === "MANUAL" || r.source === "AUTO")) {
+  if (r.status === "ABSENT" && r.source === "AUTO") return "—";
+  if ((r.status === "ABSENT" || r.status === "ON_LEAVE") && r.source === "MANUAL") {
     const local = new Date(r.clockIn).toLocaleTimeString("en-US", {
       hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
     });

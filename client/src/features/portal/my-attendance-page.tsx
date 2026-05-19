@@ -185,7 +185,7 @@ export default function MyAttendancePage() {
                 <TableCell>{r.branch.name}</TableCell>
                 <TableCell>{statusBadge(r.status)}</TableCell>
                 <TableCell className="tabular-nums">
-                  {formatLocalTime(r.clockIn, tz)}
+                  {r.status === "ABSENT" && r.source === "AUTO" ? "—" : formatLocalTime(r.clockIn, tz)}
                 </TableCell>
                 <TableCell className="tabular-nums">
                   {r.clockOut ? formatLocalTime(r.clockOut, tz) : "—"}
