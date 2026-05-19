@@ -815,16 +815,24 @@ export default function KioskPage() {
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
     canvas.toBlob((blob) => {
       if (!blob) return;
       setPhotoBlob(blob);
-      setPhotoUrl(URL.createObjectURL(blob));
-      setConfirmError("");
-      setClockOutNote("");
-      const isClockedIn = !!statusData?.attendance && !statusData.attendance.clockOut;
-      setActionWasClockIn(!isClockedIn);
-      setScreen("confirm");
+      // Use FileReader to convert blob to data URL — more reliable than blob URLs
+      // which can break under Content-Security-Policy restrictions.
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoUrl(reader.result as string);
+        setConfirmError("");
+        setClockOutNote("");
+        const isClockedIn = !!statusData?.attendance && !statusData.attendance.clockOut;
+        setActionWasClockIn(!isClockedIn);
+        setScreen("confirm");
+      };
+      reader.readAsDataURL(blob);
     }, "image/jpeg", 0.85);
   }
 
