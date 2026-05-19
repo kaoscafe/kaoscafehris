@@ -296,7 +296,7 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-400 mt-0.5">Current week</p>
             </div>
             <div className="flex gap-3">
-              {[[BRAND, "Present"], [ROSE, "Late"], [AMBER, "Absent"]].map(([c, l]) => (
+              {[[GREEN, "Present"], [AMBER, "Late"], [BRAND, "Absent"]].map(([c, l]) => (
                 <div key={l as string} className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full" style={{ background: c as string }} />
                   <span className="text-[11px] text-gray-400">{l}</span>
@@ -319,7 +319,7 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-400 mt-0.5">Monthly overview</p>
             </div>
             <div className="flex gap-3">
-              {[[BRAND, "Gross"], [GREEN, "Net"], [AMBER, "Deductions"]].map(([c, l]) => (
+              {[[GREEN, "Gross"], [AMBER, "Net"], [BRAND, "Deductions"]].map(([c, l]) => (
                 <div key={l as string} className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full" style={{ background: c as string }} />
                   <span className="text-[11px] text-gray-400">{l}</span>
@@ -455,9 +455,9 @@ function AttendanceTrendChart({ data }: { data: Array<{ date: string; present: n
         {days.map((day, i) => (
           <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: h }}>
-              <div title={`Present: ${present[i]}`} style={{ width: 10, background: BRAND, borderRadius: "3px 3px 0 0", height: Math.max((present[i] / maxV) * h, present[i] > 0 ? 4 : 0), opacity: 0.85 }} />
-              <div title={`Late: ${late[i]}`} style={{ width: 10, background: ROSE, borderRadius: "3px 3px 0 0", height: Math.max((late[i] / maxV) * h, late[i] > 0 ? 4 : 0), opacity: 0.85 }} />
-              <div title={`Absent: ${absent[i]}`} style={{ width: 10, background: AMBER, borderRadius: "3px 3px 0 0", height: Math.max((absent[i] / maxV) * h, absent[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Present: ${present[i]}`} style={{ width: 10, background: GREEN, borderRadius: "3px 3px 0 0", height: Math.max((present[i] / maxV) * h, present[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Late: ${late[i]}`} style={{ width: 10, background: AMBER, borderRadius: "3px 3px 0 0", height: Math.max((late[i] / maxV) * h, late[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Absent: ${absent[i]}`} style={{ width: 10, background: BRAND, borderRadius: "3px 3px 0 0", height: Math.max((absent[i] / maxV) * h, absent[i] > 0 ? 4 : 0), opacity: 0.85 }} />
             </div>
             <div style={{ fontSize: 10, color: "#bbb", marginTop: 7, fontWeight: 500 }}>{day}</div>
           </div>
@@ -504,9 +504,9 @@ function PayrollBarChart({ data }: { data: Array<{ month: string; gross: number;
         {months.map((month, i) => (
           <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: h }}>
-              <div title={`Gross Pay: ${formatPeso(gross[i])}`} style={{ width: 10, background: BRAND, borderRadius: "3px 3px 0 0", height: Math.max((gross[i] / maxV) * h, gross[i] > 0 ? 4 : 0), opacity: 0.85 }} />
-              <div title={`Net Pay: ${formatPeso(net[i])}`} style={{ width: 10, background: GREEN, borderRadius: "3px 3px 0 0", height: Math.max((net[i] / maxV) * h, net[i] > 0 ? 4 : 0), opacity: 0.85 }} />
-              <div title={`Deductions: ${formatPeso(deduct[i])}`} style={{ width: 10, background: AMBER, borderRadius: "3px 3px 0 0", height: Math.max((deduct[i] / maxV) * h, deduct[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Gross Pay: ${formatPeso(gross[i])}`} style={{ width: 10, background: GREEN, borderRadius: "3px 3px 0 0", height: Math.max((gross[i] / maxV) * h, gross[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Net Pay: ${formatPeso(net[i])}`} style={{ width: 10, background: AMBER, borderRadius: "3px 3px 0 0", height: Math.max((net[i] / maxV) * h, net[i] > 0 ? 4 : 0), opacity: 0.85 }} />
+              <div title={`Deductions: ${formatPeso(deduct[i])}`} style={{ width: 10, background: BRAND, borderRadius: "3px 3px 0 0", height: Math.max((deduct[i] / maxV) * h, deduct[i] > 0 ? 4 : 0), opacity: 0.85 }} />
             </div>
             <div style={{ fontSize: 10, color: "#bbb", marginTop: 7, fontWeight: 500 }}>{month}</div>
           </div>
