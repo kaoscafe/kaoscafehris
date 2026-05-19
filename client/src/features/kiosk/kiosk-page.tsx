@@ -3,7 +3,7 @@ import { AlertCircle, Building2, Calendar, CheckCircle2, Clock, LogOut, RefreshC
 import { extractErrorMessage } from "@/lib/api";
 import {
   getKioskStatus, kioskClockIn, kioskClockOut, pingKiosk, uploadKioskSelfie, validateKioskPin,
-  type KioskAttendance, type KioskEmployee, type KioskShift, type KioskStatusData,
+  type KioskEmployee, type KioskStatusData,
 } from "./kiosk.api";
 import { COMPANY_TZ } from "@/lib/timezone";
 
@@ -140,168 +140,6 @@ function IdEntryScreen({
   );
 }
 
-// ─── Screen 2: Main (Shift + Camera) ─────────────────────────────────────────
-
-function ShiftCard({
-  employeeName, shift, attendance, lastClockIn,
-}: { employeeName: string; shift: KioskShift | null; attendance: KioskAttendance | null; lastClockIn: { date: string; clockIn: string } | null }) {
-  const isClockedIn = !!attendance && !attendance.clockOut;
-  const isDone = !!attendance?.clockOut;
-  const now = useLiveClock();
-  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: COMPANY_TZ });
-  const dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: COMPANY_TZ });
-  const initials = employeeName.split(" ").map((n) => n[0]).join("");
-
-  const badge = isDone
-    ? { bg: "#dcfce7", color: "#15803d", dot: "#15803d", label: "Timed Out" }
-    : isClockedIn
-    ? { bg: "#fef3c7", color: "#92400e", dot: "#f59e0b", label: "Timed In" }
-    : { bg: "#fdf0e0", color: "#a06010", dot: "#f97316", label: "Not Yet Timed In" };
-
-  return (
-    <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
-      {/* Top accent bar */}
-      <div style={{ height: 4, background: `linear-gradient(90deg, ${BRAND}, #c0392b, ${ROSE})`, flexShrink: 0 }} />
-
-      <div style={{ padding: "24px 24px 0", flexShrink: 0 }}>
-        {/* Employee greeting with avatar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
-          <div style={{ width: 48, height: 48, borderRadius: "50%", background: `linear-gradient(135deg, ${BRAND}, ${DARK})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, letterSpacing: 0.5 }}>
-            {initials}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ color: ROSE, fontSize: 12, fontWeight: 500 }}>{greeting()},</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: NEAR_BLACK, letterSpacing: -0.2, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{employeeName}</div>
-            <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
-              <Clock size={12} color={ROSE} />
-              <span style={{ fontSize: 12, color: "#999", fontVariantNumeric: "tabular-nums" }}>
-                {timeStr} · {dateStr}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Section divider */}
-        <div style={{ borderTop: `1px solid #f3e8e8`, marginBottom: 18 }} />
-      </div>
-
-      {/* Shift details */}
-      <div style={{ padding: "0 24px", flex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: ROSE, textTransform: "uppercase", letterSpacing: 0.5 }}>Today's Shift</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, background: badge.bg, color: badge.color, borderRadius: 20, padding: "4px 12px", letterSpacing: 0.2 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.dot, flexShrink: 0 }} />
-            {badge.label}
-          </span>
-        </div>
-        {shift ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fdf8f8", borderRadius: 12, padding: "14px 16px" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Clock size={18} color={BRAND} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, color: NEAR_BLACK, fontWeight: 600 }}>{shift.name}</div>
-                <div style={{ fontSize: 13, color: "#666", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>{shift.startTime} – {shift.endTime}</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fdf8f8", borderRadius: 12, padding: "14px 16px" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Building2 size={18} color={BRAND} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, color: NEAR_BLACK, fontWeight: 600 }}>{shift.branch.name}</div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Branch</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ padding: "20px 0", textAlign: "center", background: "#fdf8f8", borderRadius: 12 }}>
-            <Calendar size={36} color="#ccc" style={{ margin: "0 auto 10px" }} />
-            <p style={{ fontSize: 14, color: "#999", margin: 0, fontWeight: 500 }}>No shift scheduled for today.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
-        <div style={{ borderTop: "1px solid #f3e8e8", marginTop: 16, paddingTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
-          <Clock size={12} color="#ccc" />
-          <span style={{ fontSize: 12, color: "#aaa" }}>
-            {lastClockIn
-              ? `Last clock-in: ${fmtDate(lastClockIn.date)} at ${fmtTime(lastClockIn.clockIn)}`
-              : isClockedIn
-              ? `Clocked in at ${fmtTime(attendance!.clockIn)}`
-              : "No previous clock-in on record"}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CameraView({
-  videoRef, onCapture, isClockedIn, cameraReady, cameraError,
-}: { videoRef: React.RefObject<HTMLVideoElement | null>; onCapture: () => void; isClockedIn: boolean; cameraReady: boolean; cameraError: boolean }) {
-  return (
-    <div style={{ background: "#fff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-      <div style={{ fontSize: 15, fontWeight: 700, color: NEAR_BLACK, marginBottom: 14 }}>Photo Attendance</div>
-
-      <div style={{ borderRadius: 14, overflow: "hidden", position: "relative", background: NEAR_BLACK, aspectRatio: "4/3" }}>
-        <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        {!cameraReady && !cameraError && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
-            <span style={{ color: "#fff", fontSize: 14 }}>Starting camera…</span>
-          </div>
-        )}
-        {cameraError && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", gap: 8 }}>
-            <AlertCircle size={32} color="rgba(255,255,255,0.6)" />
-            <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 600 }}>Camera unavailable</span>
-            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Check camera permissions and try again</span>
-          </div>
-        )}
-        {/* Face guide oval */}
-        {!cameraError && (
-          <>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <div style={{
-                width: 140, height: 180,
-                border: "2px solid rgba(255,255,255,0.35)",
-                borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-                boxShadow: "0 0 0 9999px rgba(0,0,0,0.25)",
-              }} />
-            </div>
-            <div style={{ position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center" }}>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", background: "rgba(0,0,0,0.35)", borderRadius: 20, padding: "4px 14px" }}>
-                Center your face in the frame
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <button
-        onClick={onCapture}
-        disabled={!cameraReady}
-        style={{
-          width: "100%", marginTop: 14, padding: "15px", borderRadius: 12,
-          background: cameraReady ? (isClockedIn ? "#b91c1c" : "#15803d") : "#9ca3af",
-          border: "none",
-          color: "#fff", fontSize: 15, fontWeight: 800,
-          cursor: cameraReady ? "pointer" : "not-allowed",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          boxShadow: cameraReady ? (isClockedIn ? "0 4px 14px rgba(185,28,28,0.3)" : "0 4px 14px rgba(21,128,61,0.3)") : "none",
-          transition: "background 0.2s",
-        }}
-      >
-        <Clock size={18} color="#fff" />
-        {cameraError ? "Camera unavailable" : cameraReady ? (isClockedIn ? "Time Out" : "Time In") : "Camera loading…"}
-      </button>
-    </div>
-  );
-}
-
 function MainScreen({
   statusData, videoRef, onCapture, onLogout, cameraReady, cameraError, actionError,
 }: {
@@ -317,65 +155,203 @@ function MainScreen({
   const isClockedIn = !!attendance && !attendance.clockOut;
   const isDone = !!attendance?.clockOut;
   const isStale = !!staleShiftEnd && isClockedIn;
+  const now = useLiveClock();
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: COMPANY_TZ });
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: COMPANY_TZ });
+  const initials = `${employee.firstName} ${employee.lastName}`.split(" ").map((n) => n[0]).join("");
+
+  const badge = isDone
+    ? { bg: "#dcfce7", color: "#15803d", dot: "#15803d", label: "Timed Out" }
+    : isClockedIn
+    ? { bg: "#fef3c7", color: "#92400e", dot: "#f59e0b", label: "Timed In" }
+    : { bg: "#fdf0e0", color: "#a06010", dot: "#f97316", label: "Not Yet Timed In" };
+
+  const showAction = isStale || (!isDone && shift);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #fdfbfb 0%, #faf6f6 40%, #f7efef 100%)", fontFamily: "'Inter', sans-serif" }}>
       <KioskHeader />
 
-      <div style={{ flex: 1, width: "100%", padding: "40px 40px 32px", boxSizing: "border-box" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "40px" }}>
         {actionError && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 24, maxWidth: 600, width: "100%" }}>
             <AlertCircle size={16} color="#dc2626" style={{ flexShrink: 0 }} />
             <span style={{ fontSize: 14, color: "#991b1b", fontWeight: 500 }}>{actionError}</span>
           </div>
         )}
 
-        {/* Two-column layout */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 28 }}>
-          {/* Left column: shift info */}
-          <div>
-            {isStale || (!isDone && shift) ? (
-              <ShiftCard employeeName={`${employee.firstName} ${employee.lastName}`} shift={shift} attendance={attendance} lastClockIn={lastClockIn} />
-            ) : !isDone && !shift ? (
-              <div style={{ background: "#fff", borderRadius: 16, padding: "40px 24px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 280 }}>
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                  <Calendar size={28} color={ROSE} />
+        {/* Single unified card */}
+        <div style={{ maxWidth: 600, width: "100%", background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", overflow: "hidden" }}>
+          {/* Accent bar */}
+          <div style={{ height: 4, background: `linear-gradient(90deg, ${BRAND}, #c0392b, ${ROSE})` }} />
+
+          <div style={{ padding: "28px 28px 0" }}>
+            {/* Employee greeting */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: `linear-gradient(135deg, ${BRAND}, ${DARK})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 800, flexShrink: 0, letterSpacing: 0.5 }}>
+                {initials}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: ROSE, fontSize: 12, fontWeight: 500 }}>{greeting()},</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: NEAR_BLACK, letterSpacing: -0.2, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{employee.firstName} {employee.lastName}</div>
+                <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}>
+                  <Clock size={12} color={ROSE} />
+                  <span style={{ fontSize: 12, color: "#999", fontVariantNumeric: "tabular-nums" }}>
+                    {timeStr} · {dateStr}
+                  </span>
                 </div>
-                <p style={{ fontWeight: 600, color: NEAR_BLACK, fontSize: 16, margin: 0 }}>No shift scheduled</p>
-                <p style={{ fontSize: 13, color: "#aaa", marginTop: 6, marginBottom: 0 }}>You are not assigned to a shift today.</p>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "1px solid #f3e8e8", marginBottom: 18 }} />
+          </div>
+
+          {/* Shift details */}
+          <div style={{ padding: "0 28px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: ROSE, textTransform: "uppercase", letterSpacing: 0.5 }}>Today's Shift</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, background: badge.bg, color: badge.color, borderRadius: 20, padding: "4px 12px", letterSpacing: 0.2 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.dot, flexShrink: 0 }} />
+                {badge.label}
+              </span>
+            </div>
+
+            {shift ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fdf8f8", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Clock size={18} color={BRAND} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, color: NEAR_BLACK, fontWeight: 600 }}>{shift.name}</div>
+                    <div style={{ fontSize: 13, color: "#666", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>{shift.startTime} – {shift.endTime}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fdf8f8", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Building2 size={18} color={BRAND} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, color: NEAR_BLACK, fontWeight: 600 }}>{shift.branch.name}</div>
+                    <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>Branch</div>
+                  </div>
+                </div>
+              </div>
+            ) : !isDone ? (
+              <div style={{ padding: "24px 0", textAlign: "center", background: "#fdf8f8", borderRadius: 12 }}>
+                <Calendar size={36} color="#ccc" style={{ margin: "0 auto 10px" }} />
+                <p style={{ fontSize: 14, color: "#999", margin: 0, fontWeight: 500 }}>No shift scheduled for today.</p>
               </div>
             ) : (
-              <div style={{ background: "#fff", borderRadius: 16, padding: "40px 24px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 280 }}>
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                  <CheckCircle2 size={28} color="#15803d" />
-                </div>
-                <p style={{ fontWeight: 600, color: NEAR_BLACK, fontSize: 16, margin: 0 }}>Shift complete</p>
-                <p style={{ fontSize: 13, color: "#aaa", marginTop: 6, marginBottom: 0 }}>
+              <div style={{ padding: "24px 0", textAlign: "center", background: "#fdf8f8", borderRadius: 12 }}>
+                <CheckCircle2 size={36} color="#15803d" style={{ margin: "0 auto 10px" }} />
+                <p style={{ fontSize: 14, color: "#999", margin: 0, fontWeight: 500 }}>
                   In {fmtTime(attendance!.clockIn)} · Out {fmtTime(attendance!.clockOut!)}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Right column: camera / action */}
-          <div>
-            {isStale || (!isDone && shift) ? (
-              <CameraView videoRef={videoRef} onCapture={onCapture} isClockedIn={isClockedIn || isStale} cameraReady={cameraReady} cameraError={cameraError} />
-            ) : (
-              <div style={{ background: "#fff", borderRadius: 16, padding: "40px 24px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(140,21,21,0.06)", border: "1px solid rgba(0,0,0,0.04)", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 280 }}>
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                  <Clock size={28} color={ROSE} />
+          <div style={{ padding: "0 28px", marginTop: 18 }}>
+            <div style={{ borderTop: "1px solid #f3e8e8", marginBottom: 18 }} />
+          </div>
+
+          {/* Camera / action */}
+          <div style={{ padding: "0 28px" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: NEAR_BLACK, marginBottom: 14 }}>Photo Attendance</div>
+
+            {showAction ? (
+              <>
+                <div style={{ borderRadius: 14, overflow: "hidden", position: "relative", background: NEAR_BLACK, aspectRatio: "4/3" }}>
+                  <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {!cameraReady && !cameraError && (
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+                      <span style={{ color: "#fff", fontSize: 14 }}>Starting camera…</span>
+                    </div>
+                  )}
+                  {cameraError && (
+                    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", gap: 8 }}>
+                      <AlertCircle size={32} color="rgba(255,255,255,0.6)" />
+                      <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 600 }}>Camera unavailable</span>
+                      <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Check camera permissions and try again</span>
+                    </div>
+                  )}
+                  {!cameraError && (
+                    <>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                        <div style={{
+                          width: 140, height: 180,
+                          border: "2px solid rgba(255,255,255,0.35)",
+                          borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
+                          boxShadow: "0 0 0 9999px rgba(0,0,0,0.25)",
+                        }} />
+                      </div>
+                      <div style={{ position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center" }}>
+                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", background: "rgba(0,0,0,0.35)", borderRadius: 20, padding: "4px 14px" }}>
+                          Center your face in the frame
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <p style={{ fontWeight: 600, color: "#666", fontSize: 15, margin: 0 }}>No action available</p>
-                <p style={{ fontSize: 13, color: "#aaa", marginTop: 6, marginBottom: 0 }}>
-                  {isDone ? "Your shift has been completed." : "Contact your manager if you need to clock in."}
-                </p>
+
+                <button
+                  onClick={onCapture}
+                  disabled={!cameraReady}
+                  style={{
+                    width: "100%", marginTop: 14, padding: "15px", borderRadius: 12,
+                    background: cameraReady ? (isClockedIn ? "#b91c1c" : "#15803d") : "#9ca3af",
+                    border: "none",
+                    color: "#fff", fontSize: 15, fontWeight: 800,
+                    cursor: cameraReady ? "pointer" : "not-allowed",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                    boxShadow: cameraReady ? (isClockedIn ? "0 4px 14px rgba(185,28,28,0.3)" : "0 4px 14px rgba(21,128,61,0.3)") : "none",
+                    transition: "background 0.2s",
+                  }}
+                >
+                  <Clock size={18} color="#fff" />
+                  {cameraError ? "Camera unavailable" : cameraReady ? (isClockedIn ? "Time Out" : "Time In") : "Camera loading…"}
+                </button>
+              </>
+            ) : (
+              <div style={{ padding: "32px 0", textAlign: "center", background: "#fdf8f8", borderRadius: 12 }}>
+                {isDone ? (
+                  <>
+                    <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                      <CheckCircle2 size={24} color="#15803d" />
+                    </div>
+                    <p style={{ fontWeight: 600, color: NEAR_BLACK, fontSize: 15, margin: 0 }}>Shift complete</p>
+                    <p style={{ fontSize: 13, color: "#aaa", marginTop: 4, marginBottom: 0 }}>All done for today.</p>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ width: 48, height: 48, borderRadius: "50%", background: BLUSH, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                      <Clock size={24} color={ROSE} />
+                    </div>
+                    <p style={{ fontWeight: 600, color: "#666", fontSize: 15, margin: 0 }}>No action available</p>
+                    <p style={{ fontSize: 13, color: "#aaa", marginTop: 4, marginBottom: 0 }}>Contact your manager if you need to clock in.</p>
+                  </>
+                )}
               </div>
             )}
           </div>
+
+          {/* Footer */}
+          <div style={{ padding: "0 28px 28px" }}>
+            <div style={{ borderTop: "1px solid #f3e8e8", marginTop: 18, paddingTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
+              <Clock size={12} color="#ccc" />
+              <span style={{ fontSize: 12, color: "#aaa" }}>
+                {lastClockIn
+                  ? `Last clock-in: ${fmtDate(lastClockIn.date)} at ${fmtTime(lastClockIn.clockIn)}`
+                  : isClockedIn
+                  ? `Clocked in at ${fmtTime(attendance!.clockIn)}`
+                  : "No previous clock-in on record"}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div style={{ textAlign: "center" }}>
+        <div style={{ marginTop: 24 }}>
           <button
             onClick={onLogout}
             style={{ background: "none", border: "none", color: ROSE, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 500, padding: "8px 16px", borderRadius: 8, transition: "background 0.15s" }}
@@ -419,144 +395,130 @@ function ConfirmScreen({
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #fdfbfb 0%, #faf6f6 40%, #f7efef 100%)", fontFamily: "'Inter', sans-serif" }}>
       <KioskHeader name={`${employee.firstName} ${employee.lastName}`} />
 
-      <div style={{ flex: 1, width: "100%", padding: "40px 40px 32px", boxSizing: "border-box", display: "flex", justifyContent: "center" }}>
-        <div style={{ background: "#fff", borderRadius: 20, padding: "40px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(140,21,21,0.08)", border: "1px solid rgba(0,0,0,0.04)", maxWidth: 720, width: "100%", display: "flex", gap: 40 }}>
+      <div style={{ flex: 1, maxWidth: 560, margin: "0 auto", width: "100%", padding: "32px 24px", boxSizing: "border-box" }}>
+        <div style={{ background: "#fff", borderRadius: 20, padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(140,21,21,0.08)", border: "1px solid rgba(0,0,0,0.04)" }}>
 
-          {/* Left: Photo + actions */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: actionBadge.bg, color: actionBadge.color, fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "5px 16px", marginBottom: 10 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: actionBadge.icon }} />
-                {actionBadge.label}
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: NEAR_BLACK }}>Confirm Your Photo</div>
-              <div style={{ fontSize: 13, color: "#aaa", marginTop: 3 }}>Review carefully before submitting</div>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: actionBadge.bg, color: actionBadge.color, fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "5px 16px", marginBottom: 12 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: actionBadge.icon }} />
+              {actionBadge.label}
             </div>
-
-            <div style={{ borderRadius: 14, overflow: "hidden", marginBottom: 20, border: "2px solid #f0e6e6" }}>
-              <img src={photoUrl} alt="Selfie" style={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 360 }} />
-            </div>
-
-            {!isClockedIn && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 6 }}>
-                  Note (optional)
-                </div>
-                <textarea
-                  value={clockInNote}
-                  onChange={(e) => onClockInNoteChange(e.target.value)}
-                  placeholder="e.g. Starting late, overtime expected…"
-                  maxLength={500}
-                  rows={3}
-                  disabled={loading}
-                  style={{
-                    width: "100%", borderRadius: 12, border: "1.5px solid #e5e5e5",
-                    padding: "12px 14px", fontSize: 14, color: NEAR_BLACK, resize: "none",
-                    outline: "none", fontFamily: "inherit", boxSizing: "border-box",
-                    background: loading ? "#f9f9f9" : "#fafafa", transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = ROSE)}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e5e5")}
-                />
-              </div>
-            )}
-
-            {isClockedIn && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 6 }}>
-                  Reason for clocking out (optional)
-                </div>
-                <textarea
-                  value={clockOutNote}
-                  onChange={(e) => onClockOutNoteChange(e.target.value)}
-                  placeholder="e.g. Early dismissal, overtime approved…"
-                  maxLength={500}
-                  rows={3}
-                  disabled={loading}
-                  style={{
-                    width: "100%", borderRadius: 12, border: "1.5px solid #e5e5e5",
-                    padding: "12px 14px", fontSize: 14, color: NEAR_BLACK, resize: "none",
-                    outline: "none", fontFamily: "inherit", boxSizing: "border-box",
-                    background: loading ? "#f9f9f9" : "#fafafa", transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = ROSE)}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e5e5")}
-                />
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 14 }}>
-              <button
-                onClick={onRetake}
-                disabled={loading}
-                style={{
-                  flex: 1, padding: "14px", borderRadius: 12, border: "1.5px solid #e5e5e5",
-                  background: "#fff", color: "#555", fontSize: 14, fontWeight: 600, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  opacity: loading ? 0.5 : 1, transition: "background 0.15s",
-                }}
-              >
-                <RefreshCw size={16} color="#888" /> Retake
-              </button>
-              <button
-                onClick={onConfirm}
-                disabled={loading}
-                style={{
-                  flex: 1.6, padding: "14px", borderRadius: 12, border: "none",
-                  background: isClockedIn ? "#b91c1c" : "#15803d", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  boxShadow: isClockedIn ? "0 4px 14px rgba(185,28,28,0.3)" : "0 4px 14px rgba(21,128,61,0.3)",
-                  opacity: loading ? 0.7 : 1, transition: "opacity 0.15s",
-                }}
-              >
-                {loading ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <CheckCircle2 size={16} color="#fff" />
-                )}
-                {loading ? "Saving…" : isClockedIn ? "Confirm Time Out" : "Confirm Time In"}
-              </button>
-            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: NEAR_BLACK }}>Confirm Your Photo</div>
+            <div style={{ fontSize: 13, color: "#aaa", marginTop: 4 }}>Review carefully before submitting</div>
           </div>
 
-          {/* Right: Employee details */}
-          <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid #f0e6e6", paddingLeft: 32 }}>
+          <div style={{ borderRadius: 14, overflow: "hidden", marginBottom: 24, border: "2px solid #f0e6e6" }}>
+            <img src={photoUrl} alt="Selfie" style={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 300 }} />
+          </div>
+
+          {!isClockedIn && (
             <div style={{ marginBottom: 24 }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: `linear-gradient(135deg, ${BRAND}, ${DARK})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 8 }}>
+                Note (optional)
+              </div>
+              <textarea
+                value={clockInNote}
+                onChange={(e) => onClockInNoteChange(e.target.value)}
+                placeholder="e.g. Starting late, overtime expected…"
+                maxLength={500}
+                rows={3}
+                disabled={loading}
+                style={{
+                  width: "100%", borderRadius: 12, border: "1.5px solid #e5e5e5",
+                  padding: "12px 14px", fontSize: 14, color: NEAR_BLACK, resize: "none",
+                  outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+                  background: loading ? "#f9f9f9" : "#fafafa", transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = ROSE)}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e5e5")}
+              />
+            </div>
+          )}
+
+          {isClockedIn && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 8 }}>
+                Reason for clocking out (optional)
+              </div>
+              <textarea
+                value={clockOutNote}
+                onChange={(e) => onClockOutNoteChange(e.target.value)}
+                placeholder="e.g. Early dismissal, overtime approved…"
+                maxLength={500}
+                rows={3}
+                disabled={loading}
+                style={{
+                  width: "100%", borderRadius: 12, border: "1.5px solid #e5e5e5",
+                  padding: "12px 14px", fontSize: 14, color: NEAR_BLACK, resize: "none",
+                  outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+                  background: loading ? "#f9f9f9" : "#fafafa", transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = ROSE)}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e5e5")}
+              />
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+            <button
+              onClick={onRetake}
+              disabled={loading}
+              style={{
+                flex: 1, padding: "14px", borderRadius: 12, border: "1.5px solid #e5e5e5",
+                background: "#fff", color: "#555", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                opacity: loading ? 0.5 : 1, transition: "background 0.15s",
+              }}
+            >
+              <RefreshCw size={16} color="#888" /> Retake
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              style={{
+                flex: 1.6, padding: "14px", borderRadius: 12, border: "none",
+                background: isClockedIn ? "#b91c1c" : "#15803d", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                boxShadow: isClockedIn ? "0 4px 14px rgba(185,28,28,0.3)" : "0 4px 14px rgba(21,128,61,0.3)",
+                opacity: loading ? 0.7 : 1, transition: "opacity 0.15s",
+              }}
+            >
+              {loading ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <CheckCircle2 size={16} color="#fff" />
+              )}
+              {loading ? "Saving…" : isClockedIn ? "Confirm Time Out" : "Confirm Time In"}
+            </button>
+          </div>
+
+          <div style={{ borderTop: "1px solid #f0e6e6", paddingTop: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg, ${BRAND}, ${DARK})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 16, fontWeight: 800 }}>
                 {employee.firstName[0]}{employee.lastName[0]}
               </div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: NEAR_BLACK }}>{employee.lastName},</div>
-              <div style={{ fontSize: 15, color: NEAR_BLACK, fontWeight: 600 }}>{employee.firstName}</div>
-              <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>{employee.branch.name}</div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: NEAR_BLACK }}>{employee.lastName}, {employee.firstName}</div>
+                <div style={{ fontSize: 13, color: "#888" }}>{employee.branch.name}</div>
+              </div>
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px" }}>
               <div>
                 <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 4 }}>Action</div>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: actionBadge.bg, color: actionBadge.color, fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "4px 14px" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: actionBadge.icon }} />
+                <span style={{ display: "inline-block", background: actionBadge.bg, color: actionBadge.color, fontSize: 12, fontWeight: 700, borderRadius: 20, padding: "4px 14px" }}>
                   {actionBadge.label}
                 </span>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 4 }}>Time</div>
-                <span style={{ fontSize: 15, fontWeight: 600, color: NEAR_BLACK, fontVariantNumeric: "tabular-nums" }}>{timeStr}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: NEAR_BLACK, fontVariantNumeric: "tabular-nums" }}>{timeStr}</span>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 4 }}>Date</div>
-                <span style={{ fontSize: 15, fontWeight: 600, color: NEAR_BLACK }}>{dateStr}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: NEAR_BLACK }}>{dateStr}</span>
               </div>
             </div>
           </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: 18 }}>
-          <button
-            onClick={onRetake}
-            style={{ background: "none", border: "none", color: ROSE, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500 }}
-          >
-            <LogOut size={13} color={ROSE} /> Cancel & switch employee
-          </button>
         </div>
       </div>
     </div>
