@@ -48,7 +48,7 @@ function KioskHeader({ name }: { name?: string }) {
   const dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: COMPANY_TZ });
 
   return (
-    <header style={{ background: `linear-gradient(160deg, ${DARK} 0%, ${BRAND} 100%)`, padding: "16px 40px", flexShrink: 0, position: "relative", zIndex: 1 }}>
+    <header style={{ background: `linear-gradient(160deg, ${DARK} 0%, ${BRAND} 100%)`, padding: "16px 40px", flexShrink: 0 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <img src="/kaos-logo.svg" alt="KAOS" style={{ height: 48, width: "auto", filter: "brightness(0) invert(1)", opacity: 0.9 }} />
         {name && (
@@ -169,11 +169,10 @@ function MainScreen({
   const showAction = isStale || (!isDone && shift);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", backgroundImage: "url('/login-bg.jpg')", backgroundSize: "cover", backgroundPosition: "center", fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ position: "absolute", inset: 0, backdropFilter: "blur(6px)", background: "rgba(255,255,255,0.6)", zIndex: 0 }} />
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #fdfbfb 0%, #faf6f6 40%, #f7efef 100%)", fontFamily: "'Inter', sans-serif" }}>
       <KioskHeader />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "40px", position: "relative", zIndex: 1 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "40px" }}>
         {actionError && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 24, maxWidth: 600, width: "100%" }}>
             <AlertCircle size={16} color="#dc2626" style={{ flexShrink: 0 }} />
@@ -393,11 +392,10 @@ function ConfirmScreen({
     : { bg: "#dcfce7", color: "#166534", icon: "#15803d", label: "Time In" };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", backgroundImage: "url('/login-bg.jpg')", backgroundSize: "cover", backgroundPosition: "center", fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ position: "absolute", inset: 0, backdropFilter: "blur(6px)", background: "rgba(255,255,255,0.6)", zIndex: 0 }} />
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #fdfbfb 0%, #faf6f6 40%, #f7efef 100%)", fontFamily: "'Inter', sans-serif" }}>
       <KioskHeader />
 
-      <div style={{ flex: 1, maxWidth: 560, margin: "0 auto", width: "100%", padding: "32px 24px", boxSizing: "border-box", position: "relative", zIndex: 1 }}>
+      <div style={{ flex: 1, maxWidth: 560, margin: "0 auto", width: "100%", padding: "32px 24px", boxSizing: "border-box" }}>
         <div style={{ background: "#fff", borderRadius: 20, padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(140,21,21,0.08)", border: "1px solid rgba(0,0,0,0.04)" }}>
 
           <div style={{ textAlign: "center", marginBottom: 24 }}>
