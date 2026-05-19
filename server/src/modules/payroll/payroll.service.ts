@@ -389,8 +389,9 @@ export async function processRun(id: string) {
     const startMs = sa.shift.startTime.getTime();
     const endMs = sa.shift.endTime.getTime();
     const shiftMs = endMs >= startMs ? endMs - startMs : endMs - startMs + 24 * 3_600_000;
-    const breakMins = sa.shift.shiftType?.breakDuration ?? 60;
-    const shiftHrs = shiftMs / 3_600_000 - breakMins / 60;
+    const rawShiftHrs = shiftMs / 3_600_000;
+    const breakMins = rawShiftHrs >= 17 ? 120 : (sa.shift.shiftType?.breakDuration ?? 60);
+    const shiftHrs = rawShiftHrs - breakMins / 60;
     console.log(`[payroll:shift] emp=${sa.employeeId} date=${dateKey} startMs=${startMs} endMs=${endMs} shiftMs=${shiftMs} breakMins=${breakMins} shiftHrs=${shiftHrs}`);
 
     if (!scheduledDatesMap.has(sa.employeeId)) scheduledDatesMap.set(sa.employeeId, new Set());
@@ -500,8 +501,9 @@ export async function processRun(id: string) {
         const startMs = shift.startTime.getTime();
         const endMs = shift.endTime.getTime();
         const shiftMs = endMs >= startMs ? endMs - startMs : endMs - startMs + 24 * 3_600_000;
-        const breakMins = shift.shiftType?.breakDuration ?? 60;
-        const shiftHrs = shiftMs / 3_600_000 - breakMins / 60;
+        const rawShiftHrs = shiftMs / 3_600_000;
+        const breakMins = rawShiftHrs >= 17 ? 120 : (shift.shiftType?.breakDuration ?? 60);
+        const shiftHrs = rawShiftHrs - breakMins / 60;
 
         for (const [empId, dates] of manualNoShiftMap) {
           if (!dates.has(dateKey)) continue;
