@@ -1000,6 +1000,8 @@ export async function processRun(id: string) {
 
   const empDeductionMap = new Map<string, typeof allEmpDeductions>();
   for (const ed of allEmpDeductions) {
+    // Skip deductions that have been fully settled (totalBalance is set and paid off).
+    if (ed.totalBalance !== null && toNum(ed.paidAmount) >= toNum(ed.totalBalance)) continue;
     const arr = empDeductionMap.get(ed.employeeId) ?? [];
     arr.push(ed);
     empDeductionMap.set(ed.employeeId, arr);
