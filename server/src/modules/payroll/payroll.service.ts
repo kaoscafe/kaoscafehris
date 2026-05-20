@@ -566,11 +566,13 @@ export async function processRun(id: string) {
       continue;
     }
 
-    // ABSENT records contribute 0 hours and 0 late minutes.
-    if (rec.status === "ABSENT") {
+    // ABSENT records with no clock-in/out = 0 hours. If the employee
+    // still clocked in and out, process normally so they're paid for
+    // hours actually worked (late/break deductions still apply).
+    if (rec.status === "ABSENT" && (!rec.clockIn || !rec.clockOut)) {
       if (!attendanceDateMap.has(rec.employeeId)) attendanceDateMap.set(rec.employeeId, new Map());
       attendanceDateMap.get(rec.employeeId)!.set(dateKey, { hoursWorked: 0, lateMinutes: 0, isOvernight: false });
-      console.log(`[payroll:att] ABSENT emp=${rec.employeeId} date=${dateKey} — 0 hours counted`);
+      console.log(`[payroll:att] ABSENT emp=${rec.employeeId} date=${dateKey} — no clock-in/out, 0 hours counted`);
       continue;
     }
 
