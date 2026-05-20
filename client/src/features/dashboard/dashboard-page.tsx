@@ -188,7 +188,7 @@ export default function DashboardPage() {
   const recentActivity = attendanceData
     .filter((a) => a.clockIn)
     .sort((a, b) => (b.clockIn > a.clockIn ? 1 : -1))
-    .slice(0, 5);
+    .slice(0, 10);
 
   if (!isAdminOrManager) {
     return (
