@@ -60,10 +60,11 @@ export default function LoginPage() {
         backgroundImage: "url('/login-bg.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
+        fontFamily: "'Inter', sans-serif",
       }}
     >
       {/* Dark overlay */}
-      <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.35)" }} />
+      <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.4)" }} />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center w-full">
@@ -102,6 +103,7 @@ export default function LoginPage() {
             autoComplete="current-password"
             disabled={busy}
             className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
+            style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
             {...register("password")}
           />
 
@@ -124,7 +126,7 @@ export default function LoginPage() {
         </form>
 
         <div className="flex-1" />
-        <p className="mt-10 pb-8 text-xs text-white/30">v. 1.0.0 - alpha</p>
+        <p className="mt-10 pb-8 text-xs text-white/30">KAOS Café HRIS</p>
       </div>
     </div>
   );
