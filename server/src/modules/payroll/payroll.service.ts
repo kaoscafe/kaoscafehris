@@ -267,7 +267,8 @@ function sumByDeductionType(
 
 /**
  * Process a DRAFT run: generate a payslip for every active employee in the
- * branch. Basic pay is computed from attendance (HOURLY) or salary / 2
+ * branch, plus terminated and reserved employees who still have attendance
+ * records within the payroll period. Basic pay is computed from attendance (HOURLY)
  * (MONTHLY_FIXED). Deductions are pulled from each employee's assigned
  * deductions (set on the employee profile) — nothing is hardcoded. All amounts
  * are adjustable per payslip after generation.
@@ -287,10 +288,24 @@ export async function processRun(id: string) {
   const employees = await prisma.employee.findMany({
     where: {
       branchId: run.branchId,
-      employmentStatus: { in: ["FULL_TIME", "PART_TIME", "TRAINEE"] },
       OR: [
-        { payType: "MONTHLY_FIXED", basicSalary: { gt: 0 } },
-        { payType: "HOURLY", hourlyRate: { not: null } },
+        {
+          employmentStatus: { in: ["FULL_TIME", "PART_TIME", "TRAINEE", "TERMINATED"] },
+          OR: [
+            { payType: "MONTHLY_FIXED", basicSalary: { gt: 0 } },
+            { payType: "HOURLY", hourlyRate: { not: null } },
+          ],
+        },
+        {
+          employmentStatus: "RESERVED",
+          attendanceRecords: {
+            some: { date: { gte: run.periodStart, lte: run.periodEnd } },
+          },
+          OR: [
+            { payType: "MONTHLY_FIXED", basicSalary: { gt: 0 } },
+            { payType: "HOURLY", hourlyRate: { not: null } },
+          ],
+        },
       ],
     },
     select: { id: true, payType: true, basicSalary: true, hourlyRate: true },
