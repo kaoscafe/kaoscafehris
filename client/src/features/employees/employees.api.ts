@@ -18,6 +18,16 @@ export interface EmployeeBranch {
   city: string;
 }
 
+export interface EmployeeDocumentInfo {
+  id: string;
+  name: string;
+  originalName: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface Employee {
   id: string;
   employeeId: string;
@@ -55,6 +65,7 @@ export interface Employee {
   updatedAt: string;
   user: EmployeeUser;
   branch: EmployeeBranch;
+  documents?: EmployeeDocumentInfo[];
 }
 
 export interface EmployeeCreateInput {

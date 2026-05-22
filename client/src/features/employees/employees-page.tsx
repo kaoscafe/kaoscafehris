@@ -120,6 +120,16 @@ function getInitialsBgColor(firstName: string, lastName: string) {
   return colors[charCode % colors.length];
 }
 
+function hasEmployeeDocument(employee: Employee, needle: string) {
+  const docs = employee.documents ?? [];
+  const lowercaseNeedle = needle.toLowerCase();
+  return docs.some((doc) =>
+    [doc.name, doc.originalName, doc.filename]
+      .map((value) => value.toLowerCase())
+      .some((value) => value.includes(lowercaseNeedle))
+  );
+}
+
 export default function EmployeesPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -457,6 +467,7 @@ export default function EmployeesPage() {
               <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-300">Position</th>
               <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-300">Branch</th>
               <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-300">Role</th>
+              <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-300">Documents</th>
               <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-300">Status</th>
               <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-300">Actions</th>
             </tr>
@@ -464,21 +475,21 @@ export default function EmployeesPage() {
           <tbody className="divide-y" style={{ "--tw-divide-opacity": 1 } as React.CSSProperties}>
             {employeesQuery.isLoading && (
               <tr>
-                <td colSpan={7} className="py-12 text-center">
+                <td colSpan={8} className="py-12 text-center">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-gray-300" />
                 </td>
               </tr>
             )}
             {employeesQuery.isError && (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-sm text-red-500">
+                <td colSpan={8} className="py-12 text-center text-sm text-red-500">
                   {extractErrorMessage(employeesQuery.error, "Failed to load employees")}
                 </td>
               </tr>
             )}
             {!employeesQuery.isLoading && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
+                <td colSpan={8} className="py-12 text-center text-sm text-gray-400">
                   No employees match the current filters.
                 </td>
               </tr>
@@ -506,6 +517,20 @@ export default function EmployeesPage() {
                 <td className="px-5 py-4 text-gray-600">{e.position}</td>
                 <td className="px-5 py-4 font-medium" style={{ color: BRAND }}>{e.branch?.name ?? "—"}</td>
                 <td className="px-5 py-4 text-gray-600 capitalize">{e.user.role.toLowerCase()}</td>
+                <td className="px-5 py-4">
+                  <div className="flex flex-wrap gap-1">
+                    {hasEmployeeDocument(e, "nbi") ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">NBI</span>
+                    ) : (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">Missing NBI</span>
+                    )}
+                    {hasEmployeeDocument(e, "nda") ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">NDA</span>
+                    ) : (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">Missing NDA</span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-5 py-4">
                   <StatusBadge status={e.employmentStatus} />
                 </td>

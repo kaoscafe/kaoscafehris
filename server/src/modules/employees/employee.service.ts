@@ -23,6 +23,21 @@ const employeeInclude = {
   user: { select: { id: true, email: true, role: true, isActive: true, lastLogin: true } },
 } as const;
 
+const employeeListInclude = {
+  ...employeeInclude,
+  documents: {
+    select: {
+      id: true,
+      name: true,
+      originalName: true,
+      filename: true,
+      mimeType: true,
+      size: true,
+      uploadedAt: true,
+    },
+  },
+} as const;
+
 export async function listEmployees(query: ListEmployeeQuery) {
   const where: Prisma.EmployeeWhereInput = {};
   if (query.branchId) where.branchId = query.branchId;
@@ -40,7 +55,7 @@ export async function listEmployees(query: ListEmployeeQuery) {
 
   return prisma.employee.findMany({
     where,
-    include: employeeInclude,
+    include: employeeListInclude,
     orderBy: [{ createdAt: "desc" }],
   });
 }
