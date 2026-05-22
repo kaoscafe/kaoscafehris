@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { Router, type Request, type Response, type NextFunction } from "express";
+import bcrypt from "bcryptjs";
 import multer from "multer";
 import { z } from "zod";
 import prisma from "../../config/db.js";
@@ -217,6 +218,21 @@ const kioskClockOutSchema = z.object({
 });
 
 router.get("/validate-pin", (_req, res) => res.json({ ok: true }));
+
+// Validate employee credentials for kiosk usage (called after entering ID)
+router.post("/validate-employee", async (req, res, next) => {
+  try {
+    const { employeeId, password } = req.body as { employeeId?: string; password?: string };
+    if (!employeeId || !password) throw new AppError(400, "Missing credentials");
+    const emp = await prisma.employee.findUnique({ where: { employeeId }, select: { userId: true } });
+    if (!emp) throw new AppError(404, "Employee not found");
+    const user = await prisma.user.findUnique({ where: { id: emp.userId }, select: { password: true } });
+    if (!user) throw new AppError(404, "Employee user not found");
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) throw new AppError(401, "Invalid credentials");
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
 
 router.post("/clock-in", async (req, res, next) => {
   try {

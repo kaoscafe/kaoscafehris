@@ -3,6 +3,7 @@ import { AlertCircle, Building2, Calendar, CheckCircle2, Clock, LogOut, RefreshC
 import { extractErrorMessage } from "@/lib/api";
 import {
   getKioskStatus, kioskClockIn, kioskClockOut, pingKiosk, uploadKioskSelfie, validateKioskPin,
+  validateEmployeeCredentials,
   type KioskEmployee, type KioskStatusData,
 } from "./kiosk.api";
 import { COMPANY_TZ } from "@/lib/timezone";
@@ -126,6 +127,51 @@ function IdEntryScreen({
           >
             {loading ? "Looking up…" : "Login"}
           </button>
+
+          <div style={{ minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: error ? 1 : 0, transition: "opacity .25s" }}>
+            <AlertCircle size={13} color="rgba(255,255,255,0.75)" />
+            <span className="text-xs text-red-300">{error || " "}</span>
+          </div>
+        </div>
+
+        <div className="flex-1" />
+        <p className="mt-10 pb-8 text-xs text-white/30">KAOS Café HRIS</p>
+      </div>
+    </div>
+  );
+}
+
+function PasswordEntryScreen({ employeeId, onSubmit, loading, error, onBack }: { employeeId: string; onSubmit: (pw: string) => void; loading: boolean; error: string; onBack: () => void }) {
+  const [password, setPassword] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, [employeeId]);
+
+  return (
+    <div className="relative flex min-h-screen flex-col items-center justify-center px-6 overflow-hidden" style={{ backgroundImage: "url('/login-bg.jpg')", backgroundSize: "cover", backgroundPosition: "center", fontFamily: "'Inter', sans-serif" }}>
+      <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.4)" }} />
+      <div className="relative z-10 flex flex-col items-center w-full">
+        <div className="flex-1" />
+        <div className="flex flex-col items-center gap-4 mb-10">
+          <img src="/kaos-logo.svg" alt="KAOS" className="h-20 w-auto brightness-0 invert" />
+          <h1 className="text-2xl font-bold tracking-wide text-white">Enter Password</h1>
+          <p className="text-sm text-white/50 text-center max-w-xs">Employee ID: {employeeId}</p>
+        </div>
+
+        <div className="w-full max-w-[320px] space-y-3">
+          <input
+            ref={inputRef}
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && password.trim() && onSubmit(password.trim())}
+            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
+            style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => onBack()} className="flex-1 w-full rounded-full py-3.5 text-sm font-bold text-white transition" style={{ backgroundColor: "#6b7280" }}>{"Back"}</button>
+            <button onClick={() => password.trim() && onSubmit(password.trim())} disabled={loading || !password.trim()} className="flex-2 mt-0 w-full rounded-full py-3.5 text-sm font-bold text-white transition disabled:opacity-50" style={{ backgroundColor: "#5A0A0A" }}>{loading ? "Verifying…" : "Submit"}</button>
+          </div>
 
           <div style={{ minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: error ? 1 : 0, transition: "opacity .25s" }}>
             <AlertCircle size={13} color="rgba(255,255,255,0.75)" />
@@ -720,9 +766,13 @@ function PinSetupScreen({ onDone }: { onDone: (pin: string) => void }) {
 
 type Screen = "loading" | "blocked" | "pin-setup" | "id-entry" | "main" | "confirm" | "success";
 
+// new screen type for password entry
+type ExtendedScreen = Screen | "password-entry";
+
 export default function KioskPage() {
-  const [screen, setScreen] = useState<Screen>("loading");
+  const [screen, setScreen] = useState<ExtendedScreen>("loading");
   const [pin, setPin] = useState("");
+  const [pendingEmployeeId, setPendingEmployeeId] = useState<string | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -799,10 +849,20 @@ export default function KioskPage() {
   }, [screen, startCamera, stopCamera]);
 
   async function handleLookup(empId: string) {
+    // After entering ID, prompt for employee password before fetching status
+    setLookupError("");
+    setPendingEmployeeId(empId);
+    setScreen("password-entry");
+  }
+
+  async function handlePasswordSubmit(password: string) {
+    if (!pendingEmployeeId) return;
     setLookupLoading(true);
     setLookupError("");
     try {
-      const data = await getKioskStatus(empId, pin);
+      const ok = await validateEmployeeCredentials(pendingEmployeeId, password, pin);
+      if (!ok) throw new Error("Invalid credentials");
+      const data = await getKioskStatus(pendingEmployeeId, pin);
       setStatusData(data);
       setScreen("main");
     } catch (err: any) {
@@ -812,7 +872,9 @@ export default function KioskPage() {
         setScreen("pin-setup");
         return;
       }
-      setLookupError(extractErrorMessage(err, "Employee not found"));
+      setLookupError(extractErrorMessage(err, "Invalid ID or password"));
+      // keep on password screen for retry
+      setScreen("password-entry");
     } finally {
       setLookupLoading(false);
     }
@@ -904,6 +966,17 @@ export default function KioskPage() {
   }
   if (screen === "blocked") return <BlockedScreen />;
   if (screen === "pin-setup") return <PinSetupScreen onDone={(p) => { setPin(p); setScreen("id-entry"); }} />;
+  if (screen === "password-entry" && pendingEmployeeId) {
+    return (
+      <PasswordEntryScreen
+        employeeId={pendingEmployeeId}
+        onSubmit={handlePasswordSubmit}
+        loading={lookupLoading}
+        error={lookupError}
+        onBack={() => { setPendingEmployeeId(null); setScreen("id-entry"); setLookupError(""); }}
+      />
+    );
+  }
   if (screen === "id-entry") {
     return <IdEntryScreen onLookup={handleLookup} loading={lookupLoading} error={lookupError} />;
   }

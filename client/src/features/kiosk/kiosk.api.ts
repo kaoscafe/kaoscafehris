@@ -51,6 +51,15 @@ export async function getKioskStatus(employeeId: string, pin: string): Promise<K
   return data.data;
 }
 
+export async function validateEmployeeCredentials(employeeId: string, password: string, pin: string): Promise<boolean> {
+  try {
+    await api.post("/kiosk/validate-employee", { employeeId, password }, { headers: h(pin) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadKioskSelfie(blob: Blob, pin: string): Promise<string> {
   const form = new FormData();
   form.append("selfie", blob, "selfie.jpg");
