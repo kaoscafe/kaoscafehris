@@ -273,6 +273,7 @@ function UploadDocumentSheet({ onClose }: { onClose: () => void }) {
           <input
             ref={fileInputRef}
             type="file"
+            accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -299,6 +300,7 @@ function UploadDocumentSheet({ onClose }: { onClose: () => void }) {
               <span>Tap to choose a file</span>
             )}
           </button>
+          <p className="text-xs text-gray-400">JPG, PNG, GIF, WebP, or PDF (max 10 MB)</p>
         </div>
       </div>
 

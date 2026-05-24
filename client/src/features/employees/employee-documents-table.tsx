@@ -200,6 +200,7 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
                       <input
                         ref={fileInputRef}
                         type="file"
+                        accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf"
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -233,6 +234,7 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
                         {uploadMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Upload"}
                       </Button>
                     </div>
+                    <p className="text-[10px] text-gray-400 mt-1">JPG, PNG, GIF, WebP, or PDF (max 10 MB)</p>
                   </td>
                 </tr>
               )}

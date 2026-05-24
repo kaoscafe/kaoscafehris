@@ -45,6 +45,16 @@ const documentUpload = multer({
     },
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedExts = /\.(jpe?g|png|gif|webp|bmp|pdf)$/i;
+    const allowedMimes = /^image\/(jpeg|png|gif|webp|bmp)$|^application\/pdf$/;
+    const ext = path.extname(file.originalname);
+    if (!allowedExts.test(ext) || !allowedMimes.test(file.mimetype)) {
+      cb(new Error("Unsupported file type. Accepted formats: JPG, PNG, GIF, WebP, BMP, PDF."));
+      return;
+    }
+    cb(null, true);
+  },
 });
 
 const router = Router();
