@@ -56,6 +56,7 @@ type PayslipWithRelations = Prisma.PayslipGetPayload<{
 
 const BRAND = "#8C1515";
 const ENTITLEMENTS = "#16A34A";
+const NET_PAY = "#16A34A";
 
 // Helvetica (WinAnsi) cannot render U+20B1 — use "P" prefix.
 const PHP = (n: Prisma.Decimal | number | string): string => {
@@ -252,7 +253,7 @@ export function renderPayslip(
   let y = margin;
 
   // ── HEADER BOX ────────────────────────────────────────────────────────────────
-  const headerH = 70;
+  const headerH = 82;
   doc.rect(margin, y, pageW, headerH).strokeColor("#CCCCCC").lineWidth(0.5).stroke();
 
   // Logo: render SVG if available, otherwise a styled "K" monogram
@@ -278,26 +279,23 @@ export function renderPayslip(
     .font("Helvetica-Bold")
     .fontSize(18)
     .fillColor("#111827")
-    .text("Payslip", titleAreaX, y + 14, { width: titleAreaW, align: "center", lineBreak: false });
+    .text("Payslip", titleAreaX, y + 12, { width: titleAreaW, align: "center", lineBreak: false });
   doc
     .font("Helvetica-Bold")
     .fontSize(10)
     .fillColor(BRAND)
-    .text("KAOS Cafe", titleAreaX, y + 39, { width: titleAreaW, align: "center", lineBreak: false });
+    .text("KAOS Cafe", titleAreaX, y + 36, { width: titleAreaW, align: "center", lineBreak: false });
 
-  y += headerH + 6;
-
-  // ── ADDRESS ───────────────────────────────────────────────────────────────────
+  // Address inside the header box
   doc.font("Helvetica").fontSize(7.5).fillColor("#6B7280");
   if (branchAddress) {
-    doc.text(branchAddress, margin, y, { width: pageW, align: "center", lineBreak: false });
-    y += 11;
+    doc.text(branchAddress, titleAreaX, y + 50, { width: titleAreaW, align: "center", lineBreak: false });
   }
   if (branchCity) {
-    doc.text(branchCity, margin, y, { width: pageW, align: "center", lineBreak: false });
-    y += 11;
+    doc.text(branchCity, titleAreaX, y + 60, { width: titleAreaW, align: "center", lineBreak: false });
   }
-  y += 5;
+
+  y += headerH + 8;
 
   // Separator
   doc.moveTo(margin, y).lineTo(rightX, y).strokeColor("#E5E7EB").lineWidth(0.5).stroke();
@@ -339,9 +337,11 @@ export function renderPayslip(
   infoVal(fmtShort(payDate), col2X + 53, y);
   y += 14;
 
-  // Row 3: Daily rate
+  // Row 3: Daily rate | Actual worked hours
   infoLbl("Daily rate:", margin, y);
   infoVal(PHP(dailyRate), margin + 57, y);
+  infoLbl("Actual worked hours:", col2X, y);
+  infoVal(`${Number(payslip.totalHoursWorked).toFixed(2)} hrs`, col2X + 107, y);
   y += 18;
 
   // Separator
@@ -402,7 +402,7 @@ export function renderPayslip(
     .text("Net pay", margin + 8, y + 8, { lineBreak: false });
 
   const netAmtStr = PHP(payslip.netPay);
-  doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor(NET_PAY);
   const netAmtW = doc.widthOfString(netAmtStr);
 
   const totalNetLabel = "Total net pay:";
@@ -414,7 +414,7 @@ export function renderPayslip(
   doc
     .font("Helvetica-Bold")
     .fontSize(11)
-    .fillColor(BRAND)
+    .fillColor(NET_PAY)
     .text(netAmtStr, rightX - netAmtW - 8, y + 6, { lineBreak: false });
 
   y += netH + 12;
