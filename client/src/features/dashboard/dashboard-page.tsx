@@ -341,12 +341,36 @@ export default function DashboardPage() {
             <tbody>
               {recentActivity.map((a, idx) => {
                 const status = a.status || "PRESENT";
-                const statusMap: Record<string, { bg: string; color: string; label: string }> = {
-                  PRESENT: { bg: "#edf6ea", color: GREEN, label: "On Time" },
-                  LATE: { bg: "#fdf0e0", color: AMBER, label: "Late" },
-                  ABSENT: { bg: "#fce9e9", color: BRAND, label: "Absent" },
+                const hasClockOut = !!a.clockOut;
+
+                const renderStatusBadge = () => {
+                  if (!hasClockOut && (status === "PRESENT" || status === "LATE")) {
+                    return (
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#fce9e9", color: BRAND }}>
+                        Ongoing
+                        {status === "LATE" && (
+                          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: AMBER, color: "#fff" }}>
+                            Late
+                          </span>
+                        )}
+                      </span>
+                    );
+                  }
+                  const map: Record<string, { bg: string; color: string; label: string }> = {
+                    PRESENT: { bg: "#edf6ea", color: GREEN, label: "On Time" },
+                    LATE: { bg: "#fdf0e0", color: AMBER, label: "Late" },
+                    ABSENT: { bg: "#fce9e9", color: BRAND, label: "Absent" },
+                    ON_LEAVE: { bg: "#f3e8ff", color: "#7a3db0", label: "On Leave" },
+                    HALF_DAY: { bg: "#f3e8ff", color: "#7a3db0", label: "On Leave" },
+                  };
+                  const bs = map[status] ?? { bg: "#f0f0f0", color: "#555", label: status };
+                  return (
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: bs.bg, color: bs.color }}>
+                      {bs.label}
+                    </span>
+                  );
                 };
-                const bs = statusMap[status] ?? { bg: "#f0f0f0", color: "#555", label: status };
+
                 return (
                   <tr
                     key={a.id}
@@ -375,10 +399,7 @@ export default function DashboardPage() {
                         : "—"}
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                        style={{ backgroundColor: bs.bg, color: bs.color }}>
-                        {bs.label}
-                      </span>
+                      {renderStatusBadge()}
                     </td>
                   </tr>
                 );
