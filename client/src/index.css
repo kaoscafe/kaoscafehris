@@ -237,3 +237,14 @@
   border-radius: 0 2px 2px 0;
   background: var(--accent-color, #8C1515);
 }
+
+/* ── Hide browser-native password reveal icons ────────────── */
+/* Edge and Chrome inject their own eye toggle in <input type="password">.
+   Our PasswordInput component provides its own toggle, so suppress the
+   browser's built-in one to avoid showing two eye icons. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="text"]::-ms-reveal,
+input[type="text"]::-ms-clear {
+  display: none;
+}
