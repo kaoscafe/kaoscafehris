@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/features/auth/use-session";
@@ -11,6 +12,20 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, allowed }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useSession();
   const location = useLocation();
+
+  // When the browser restores a page from its back-forward cache (bfcache),
+  // React hasn't re-run yet so stale authenticated content can flash before
+  // the redirect below kicks in. The pageshow event fires synchronously when
+  // a cached page is shown — we check auth and hard-redirect immediately.
+  useEffect(() => {
+    const handler = (e: PageTransitionEvent) => {
+      if (e.persisted && !isAuthenticated && !isLoading) {
+        window.location.replace("/login");
+      }
+    };
+    window.addEventListener("pageshow", handler);
+    return () => window.removeEventListener("pageshow", handler);
+  }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (

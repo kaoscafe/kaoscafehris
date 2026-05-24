@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   Building2,
@@ -70,6 +70,7 @@ function initials(name: string): string {
 export default function AppShell() {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
+  const navigate = useNavigate();
   const [dropOpen, setDropOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -168,7 +169,12 @@ export default function AppShell() {
                 <button
                   type="button"
                   className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-red-700 transition-colors"
-                  onClick={() => { setDropOpen(false); logout.mutate(); }}
+                  onClick={() => {
+                    setDropOpen(false);
+                    logout.mutate(undefined, {
+                      onSettled: () => navigate("/login", { replace: true }),
+                    });
+                  }}
                   disabled={logout.isPending}
                 >
                   <LogOut className="h-4 w-4" />

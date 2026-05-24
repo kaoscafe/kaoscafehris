@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -484,6 +485,7 @@ export default function PortalProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [changePwOpen, setChangePwOpen] = useState(false);
   const logoutMut = useLogout();
+  const navigate = useNavigate();
 
   const query = useQuery({ queryKey: ["portal-profile"], queryFn: getProfile });
 
@@ -619,7 +621,11 @@ export default function PortalProfilePage() {
 
         {/* Logout */}
         <button
-          onClick={() => logoutMut.mutate()}
+          onClick={() => {
+            logoutMut.mutate(undefined, {
+              onSettled: () => navigate("/login", { replace: true }),
+            });
+          }}
           disabled={logoutMut.isPending}
           className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white"
           style={{ backgroundColor: BRAND }}
