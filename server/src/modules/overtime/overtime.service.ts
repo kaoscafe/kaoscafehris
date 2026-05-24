@@ -244,6 +244,26 @@ export async function updateSchedule(id: string, input: UpdateScheduleInput) {
 export async function deleteSchedule(id: string) {
   const existing = await prisma.overtimeSchedule.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, "Overtime schedule not found");
+
+  const completedRun = await prisma.payrollRun.findFirst({
+    where: {
+      status: "COMPLETED",
+      periodStart: { lte: new Date(existing.date) },
+      periodEnd: { gte: new Date(existing.date) },
+      payslips: { some: { employeeId: existing.employeeId } },
+    },
+    select: { id: true, periodStart: true, periodEnd: true },
+  });
+
+  if (completedRun) {
+    const start = completedRun.periodStart.toISOString().slice(0, 10);
+    const end = completedRun.periodEnd.toISOString().slice(0, 10);
+    throw new AppError(
+      409,
+      `Cannot revert: a completed payroll run (${start} – ${end}) already covers this overtime date.`
+    );
+  }
+
   await prisma.overtimeSchedule.delete({ where: { id } });
 }
 

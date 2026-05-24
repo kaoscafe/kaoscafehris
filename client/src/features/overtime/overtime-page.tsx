@@ -101,11 +101,13 @@ function ViewOvertimeDialog({ row, open, onOpenChange, canEdit }: { row: Row | n
   const [editReason, setEditReason] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editOtHours, setEditOtHours] = useState("");
+  const [confirmRevert, setConfirmRevert] = useState(false);
 
   useEffect(() => {
     if (!row) return;
     const d = row.data;
     setEditDate(d.date.slice(0, 10));
+    setConfirmRevert(false);
     if (row.kind === "request") {
       setEditStartTime((d as OvertimeRequest).startTime ?? "");
       setEditEndTime((d as OvertimeRequest).endTime ?? "");
@@ -379,32 +381,49 @@ function ViewOvertimeDialog({ row, open, onOpenChange, canEdit }: { row: Row | n
               </button>
             </div>
           )}
-          {canRevert && (
+          {canRevert && !confirmRevert && (
             <button
-              onClick={() => {
-                if (isRequest) revertRequestMut.mutate(requestData!.id);
-                else if (isSchedule) deleteScheduleMut.mutate(scheduleData!.id);
-                else if (isAttendanceOt) {
-                  if (attOtData!.overtimeRejected) {
-                    // Revert rejection: clear the rejected flag
-                    setShiftOvertimeApproval(attOtData!.shiftId!, attOtData!.employee.id, { overtimeRejected: false })
-                      .then(() => { qc.invalidateQueries({ queryKey: ["overtime-attendance-ot"] }); toast("Overtime rejection reverted", "success"); onOpenChange(false); })
-                      .catch((err) => toast(extractErrorMessage(err), "error"));
-                  } else {
-                    revertAttendanceOtMut.mutate({ shiftId: attOtData!.shiftId!, employeeId: attOtData!.employee.id });
-                  }
-                }
-              }}
-              disabled={revertRequestMut.isPending || deleteScheduleMut.isPending || revertAttendanceOtMut.isPending}
-              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 inline-flex items-center gap-1.5"
+              onClick={() => setConfirmRevert(true)}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 inline-flex items-center gap-1.5"
             >
-              {(revertRequestMut.isPending || deleteScheduleMut.isPending || revertAttendanceOtMut.isPending) ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Undo2 className="h-3.5 w-3.5" />
-              )}
+              <Undo2 className="h-3.5 w-3.5" />
               Revert
             </button>
+          )}
+          {canRevert && confirmRevert && (
+            <div className="flex gap-2 items-center">
+              <span className="text-xs text-amber-700 font-medium">Confirm revert?</span>
+              <button
+                onClick={() => setConfirmRevert(false)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (isRequest) revertRequestMut.mutate(requestData!.id);
+                  else if (isSchedule) deleteScheduleMut.mutate(scheduleData!.id);
+                  else if (isAttendanceOt) {
+                    if (attOtData!.overtimeRejected) {
+                      setShiftOvertimeApproval(attOtData!.shiftId!, attOtData!.employee.id, { overtimeRejected: false })
+                        .then(() => { qc.invalidateQueries({ queryKey: ["overtime-attendance-ot"] }); toast("Overtime rejection reverted", "success"); onOpenChange(false); })
+                        .catch((err) => toast(extractErrorMessage(err), "error"));
+                    } else {
+                      revertAttendanceOtMut.mutate({ shiftId: attOtData!.shiftId!, employeeId: attOtData!.employee.id });
+                    }
+                  }
+                }}
+                disabled={revertRequestMut.isPending || deleteScheduleMut.isPending || revertAttendanceOtMut.isPending}
+                className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                {(revertRequestMut.isPending || deleteScheduleMut.isPending || revertAttendanceOtMut.isPending) ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Undo2 className="h-3.5 w-3.5" />
+                )}
+                Revert
+              </button>
+            </div>
           )}
           {!isAttendanceOt && (
             <Button
@@ -437,6 +456,8 @@ export default function OvertimePage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [editing, setEditing] = useState<OvertimeSchedule | null>(null);
   const [revertTarget, setRevertTarget] = useState<OvertimeRequest | null>(null);
+  const [deleteScheduleTarget, setDeleteScheduleTarget] = useState<OvertimeSchedule | null>(null);
+  const [attendanceOtRevertTarget, setAttendanceOtRevertTarget] = useState<AttendanceOvertimeRecord | null>(null);
   const [reviewTarget, setReviewTarget] = useState<OvertimeRequest | null>(null);
   const [reviewInitialStatus, setReviewInitialStatus] = useState<"APPROVED" | "REJECTED">("APPROVED");
   const [viewRow, setViewRow] = useState<Row | null>(null);
@@ -529,6 +550,12 @@ export default function OvertimePage() {
     mutationFn: (r: OvertimeRequest) => revertOvertimeRequest(r.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["overtime"] }); toast("Overtime request reverted", "success"); setRevertTarget(null); },
     onError: (err) => { toast(extractErrorMessage(err), "error"); setRevertTarget(null); },
+  });
+
+  const deleteSchedule = useMutation({
+    mutationFn: (s: OvertimeSchedule) => deleteOvertimeSchedule(s.id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["overtime-schedules"] }); toast("Assigned overtime removed", "success"); setDeleteScheduleTarget(null); },
+    onError: (err) => { toast(extractErrorMessage(err), "error"); setDeleteScheduleTarget(null); },
   });
 
   const allRequests = requestsQuery.data ?? [];
@@ -766,7 +793,7 @@ export default function OvertimePage() {
                           </button>
                           {r.shiftId && r.overtimeApproved ? (
                             <button
-                              onClick={() => attendanceOtApprove.mutate({ shiftId: r.shiftId!, employeeId: r.employee.id, approved: false })}
+                              onClick={() => setAttendanceOtRevertTarget(r)}
                               disabled={attendanceOtApprove.isPending}
                               className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                             >
@@ -833,13 +860,21 @@ export default function OvertimePage() {
                   <td className="px-5 py-4"><StatusBadge status="APPROVED" /></td>
                   {canReview && (
                     <td className="px-5 py-4">
-                      <button
-                        onClick={() => setViewRow({ kind: "schedule", data: s })}
-                        className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 hover:bg-gray-50"
-                        title="View details"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex gap-2 items-center">
+                        <button
+                          onClick={() => setViewRow({ kind: "schedule", data: s })}
+                          className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 hover:bg-gray-50"
+                          title="View details"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteScheduleTarget(s)}
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                        >
+                          Revert
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -879,6 +914,41 @@ export default function OvertimePage() {
         confirmLabel="Revert"
         onConfirm={() => revertTarget && revert.mutate(revertTarget)}
         loading={revert.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!deleteScheduleTarget}
+        onOpenChange={(o) => !o && setDeleteScheduleTarget(null)}
+        title="Remove assigned overtime?"
+        description={
+          deleteScheduleTarget
+            ? `This will remove ${deleteScheduleTarget.employee.firstName} ${deleteScheduleTarget.employee.lastName}'s assigned overtime for ${deleteScheduleTarget.date.slice(0, 10)}.`
+            : ""
+        }
+        confirmLabel="Revert"
+        onConfirm={() => deleteScheduleTarget && deleteSchedule.mutate(deleteScheduleTarget)}
+        loading={deleteSchedule.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!attendanceOtRevertTarget}
+        onOpenChange={(o) => !o && setAttendanceOtRevertTarget(null)}
+        title="Revert attendance overtime?"
+        description={
+          attendanceOtRevertTarget
+            ? `This will revert ${attendanceOtRevertTarget.employee.firstName} ${attendanceOtRevertTarget.employee.lastName}'s attendance overtime approval for ${attendanceOtRevertTarget.date.slice(0, 10)}.`
+            : ""
+        }
+        confirmLabel="Revert"
+        onConfirm={() => {
+          if (attendanceOtRevertTarget) {
+            attendanceOtApprove.mutate({ shiftId: attendanceOtRevertTarget.shiftId!, employeeId: attendanceOtRevertTarget.employee.id, approved: false }, {
+              onSuccess: () => setAttendanceOtRevertTarget(null),
+              onError: () => setAttendanceOtRevertTarget(null),
+            });
+          }
+        }}
+        loading={attendanceOtApprove.isPending}
       />
     </div>
   );
