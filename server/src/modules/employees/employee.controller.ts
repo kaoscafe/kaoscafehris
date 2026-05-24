@@ -6,6 +6,7 @@ import { listEmployeeQuerySchema } from "./employee.schema.js";
 import * as employeeService from "./employee.service.js";
 import * as edService from "./employee-deductions.service.js";
 import * as eeService from "./employee-earnings.service.js";
+import * as oteService from "./employee-one-time-earnings.service.js";
 import * as docService from "./employee-document.service.js";
 import prisma from "../../config/db.js";
 
@@ -143,6 +144,46 @@ export async function updateEarning(req: Request<EeParams>, res: Response, next:
 export async function removeEarning(req: Request<EeParams>, res: Response, next: NextFunction) {
   try {
     await eeService.removeEmployeeEarning(req.params.id, req.params.eeId);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- Employee One-Time Earnings -----------------------------------------------
+
+type OteParams = { id: string; oteId: string };
+
+export async function listOneTimeEarnings(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+  try {
+    const data = await oteService.listEmployeeOneTimeEarnings(req.params.id);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addOneTimeEarning(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+  try {
+    const data = await oteService.addEmployeeOneTimeEarning(req.params.id, req.body);
+    res.status(201).json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateOneTimeEarning(req: Request<OteParams>, res: Response, next: NextFunction) {
+  try {
+    const data = await oteService.updateEmployeeOneTimeEarning(req.params.id, req.params.oteId, req.body);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function removeOneTimeEarning(req: Request<OteParams>, res: Response, next: NextFunction) {
+  try {
+    await oteService.removeEmployeeOneTimeEarning(req.params.id, req.params.oteId);
     res.status(204).send();
   } catch (err) {
     next(err);

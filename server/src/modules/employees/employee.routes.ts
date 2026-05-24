@@ -53,6 +53,12 @@ router.post("/:id/earnings", authorize("ADMIN"), employeeController.addEarning);
 router.patch("/:id/earnings/:eeId", authorize("ADMIN"), employeeController.updateEarning);
 router.delete("/:id/earnings/:eeId", authorize("ADMIN"), employeeController.removeEarning);
 
+// Employee one-time earning assignments
+router.get("/:id/one-time-earnings", authorize("ADMIN"), employeeController.listOneTimeEarnings);
+router.post("/:id/one-time-earnings", authorize("ADMIN"), employeeController.addOneTimeEarning);
+router.patch("/:id/one-time-earnings/:oteId", authorize("ADMIN"), employeeController.updateOneTimeEarning);
+router.delete("/:id/one-time-earnings/:oteId", authorize("ADMIN"), employeeController.removeOneTimeEarning);
+
 // Employee documents
 router.get("/:id/documents", authorize("ADMIN"), employeeController.listDocuments);
 router.post("/:id/documents", authorize("ADMIN"), documentUpload.single("file"), employeeController.uploadDocument);

@@ -1034,6 +1034,22 @@ export async function processRun(id: string) {
     empEarningMap.set(ee.employeeId, arr);
   }
 
+  // Pre-fetch all pending one-time earnings whose credit date falls within this period.
+  const allEmpOneTimeEarnings = await prisma.employeeOneTimeEarning.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      payrollRunId: null,
+      effectiveDate: { gte: run.periodStart, lte: run.periodEnd },
+    },
+  });
+
+  const empOneTimeEarningMap = new Map<string, typeof allEmpOneTimeEarnings>();
+  for (const ote of allEmpOneTimeEarnings) {
+    const arr = empOneTimeEarningMap.get(ote.employeeId) ?? [];
+    arr.push(ote);
+    empOneTimeEarningMap.set(ote.employeeId, arr);
+  }
+
   const processed = await prisma.$transaction(async (tx) => {
     await tx.payslip.deleteMany({ where: { payrollRunId: run.id } });
 
@@ -1143,9 +1159,19 @@ export async function processRun(id: string) {
         amount: round2(toNum(ee.amount)),
       }));
 
-      const bonuses    = round2(profileEarningRows.filter((r) => r.type === "BONUS").reduce((s, r) => s + r.amount, 0));
-      const allowances = round2(profileEarningRows.filter((r) => r.type === "ALLOWANCE").reduce((s, r) => s + r.amount, 0));
-      const otherEarningsTotal = round2(profileEarningRows.filter((r) => r.type === "OTHER").reduce((s, r) => s + r.amount, 0));
+      // Build one-time earning rows — consumed once then marked with payrollRunId.
+      const empOneTimeEarnings = empOneTimeEarningMap.get(emp.id) ?? [];
+      const oneTimeEarningRows = empOneTimeEarnings.map((ote) => ({
+        type: ote.type as "BONUS" | "ALLOWANCE" | "OTHER",
+        label: `${ote.label} (one-time)`,
+        amount: round2(toNum(ote.amount)),
+      }));
+
+      const allProfileEarningRows = [...profileEarningRows, ...oneTimeEarningRows];
+
+      const bonuses    = round2(allProfileEarningRows.filter((r) => r.type === "BONUS").reduce((s, r) => s + r.amount, 0));
+      const allowances = round2(allProfileEarningRows.filter((r) => r.type === "ALLOWANCE").reduce((s, r) => s + r.amount, 0));
+      const otherEarningsTotal = round2(allProfileEarningRows.filter((r) => r.type === "OTHER").reduce((s, r) => s + r.amount, 0));
 
       // For HOURLY employees: credit approved paid leave days so they don't lose pay.
       // MONTHLY_FIXED employees already receive full semi-monthly pay regardless.
@@ -1245,7 +1271,7 @@ export async function processRun(id: string) {
           totalOtHours,
           totalLateMinutes: lateMinutesMap.get(emp.id) ?? 0,
           status: "DRAFT",
-          earnings: { create: [...overtimeEarnings, ...nightDiffEarnings, ...holidayEarnings, ...paidLeaveEarnings, ...profileEarningRows] },
+          earnings: { create: [...overtimeEarnings, ...nightDiffEarnings, ...holidayEarnings, ...paidLeaveEarnings, ...allProfileEarningRows] },
           deductions: { create: deductionRows },
         },
       });
@@ -1346,6 +1372,12 @@ export async function completeRun(id: string, userId: string) {
       });
     }
   }
+
+  // Mark all pending one-time earnings for these employees as consumed.
+  await prisma.employeeOneTimeEarning.updateMany({
+    where: { employeeId: { in: employeeIds }, payrollRunId: null },
+    data: { payrollRunId: run.id },
+  });
 
   await logAudit({
     action: "UPDATE",

@@ -32,8 +32,10 @@ import ImportPreviewDialog from "./import-preview-dialog";
 import EmployeeDeductionsTable, { type PendingDeduction } from "./employee-deductions-table";
 import { addEmployeeDeduction } from "./employee-deductions.api";
 import EmployeeEarningsTable, { type PendingEarning } from "./employee-earnings-table";
+import EmployeeOneTimeEarningsTable, { type PendingOneTimeEarning } from "./employee-one-time-earnings-table";
 import EmployeeDocumentsTable from "./employee-documents-table";
 import { addEmployeeEarning } from "./employee-earnings.api";
+import { addEmployeeOneTimeEarning } from "./employee-one-time-earnings.api";
 
 const BRAND = "#8C1515";
 
@@ -49,6 +51,7 @@ const baseSchema = {
     .regex(/^[A-Za-z0-9-_]+$/, "Letters, numbers, dash, underscore only"),
   branchId: z.string().uuid("Select a branch"),
   firstName: z.string().trim().min(1, "Required"),
+  middleName: z.string().trim().optional(),
   lastName: z.string().trim().min(1, "Required"),
   dateOfBirth: z.string().optional(),
   position: z.string().trim().min(1, "Required"),
@@ -140,6 +143,7 @@ export default function EmployeesPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingDeductions, setPendingDeductions] = useState<PendingDeduction[]>([]);
   const [pendingEarnings, setPendingEarnings] = useState<PendingEarning[]>([]);
+  const [pendingOneTimeEarnings, setPendingOneTimeEarnings] = useState<PendingOneTimeEarning[]>([]);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
   const isEdit = !!detailEmployee;
@@ -159,7 +163,7 @@ export default function EmployeesPage() {
     resolver: resolver as never,
     defaultValues: {
       email: "", password: "", role: "EMPLOYEE", employeeId: "",
-      branchId: "", firstName: "", lastName: "", position: "",
+      branchId: "", firstName: "", middleName: "", lastName: "", position: "",
       employmentStatus: "FULL_TIME", dateHired: "",
       payType: "MONTHLY_FIXED",
       basicSalary: 0 as unknown as number,
@@ -181,6 +185,7 @@ export default function EmployeesPage() {
         employeeId: detailEmployee.employeeId,
         branchId: detailEmployee.branchId,
         firstName: detailEmployee.firstName,
+        middleName: detailEmployee.middleName ?? "",
         lastName: detailEmployee.lastName,
         dateOfBirth: detailEmployee.dateOfBirth ? detailEmployee.dateOfBirth.slice(0, 10) : "",
         position: detailEmployee.position,
@@ -198,7 +203,7 @@ export default function EmployeesPage() {
     } else {
       reset({
         email: "", password: "", role: "EMPLOYEE", employeeId: "",
-        branchId: "", firstName: "", lastName: "", dateOfBirth: "", position: "",
+        branchId: "", firstName: "", middleName: "", lastName: "", dateOfBirth: "", position: "",
         employmentStatus: "FULL_TIME", dateHired: "",
         payType: "MONTHLY_FIXED",
         basicSalary: 0 as unknown as number,
@@ -215,7 +220,8 @@ export default function EmployeesPage() {
         const payload: EmployeeUpdateInput = {
           email: values.email, role: values.role, employeeId: values.employeeId,
           branchId: values.branchId, firstName: values.firstName,
-          lastName: values.lastName, dateOfBirth: values.dateOfBirth || undefined,
+          lastName: values.lastName, middleName: values.middleName || undefined,
+          dateOfBirth: values.dateOfBirth || undefined,
           position: values.position,
           employmentStatus: values.employmentStatus, dateHired: values.dateHired,
           payType: values.payType,
@@ -234,7 +240,8 @@ export default function EmployeesPage() {
         email: values.email, password: values.password!,
         role: values.role, employeeId: values.employeeId,
         branchId: values.branchId, firstName: values.firstName,
-        lastName: values.lastName, dateOfBirth: values.dateOfBirth || undefined,
+        lastName: values.lastName, middleName: values.middleName || undefined,
+        dateOfBirth: values.dateOfBirth || undefined,
         position: values.position,
         employmentStatus: values.employmentStatus, dateHired: values.dateHired,
         payType: values.payType,
@@ -275,6 +282,17 @@ export default function EmployeesPage() {
             });
           }
           setPendingEarnings([]);
+        }
+        if (pendingOneTimeEarnings.length > 0) {
+          for (const e of pendingOneTimeEarnings) {
+            await addEmployeeOneTimeEarning(created.id, {
+              type: e.type,
+              label: e.label,
+              amount: e.amount,
+              effectiveDate: e.effectiveDate,
+            });
+          }
+          setPendingOneTimeEarnings([]);
         }
         toast("Employee created", "success");
         setIsEditMode(false);
@@ -640,7 +658,7 @@ export default function EmployeesPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Middle Name</label>
-                      <input placeholder="Optional" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
+                      <input {...register("middleName")} placeholder="Optional" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Last Name *</label>
@@ -745,6 +763,16 @@ export default function EmployeesPage() {
                   <EmployeeEarningsTable
                     pendingEarnings={pendingEarnings}
                     onPendingChange={setPendingEarnings}
+                  />
+                )}
+
+                {/* ONE-TIME EARNINGS */}
+                {detailEmployee ? (
+                  <EmployeeOneTimeEarningsTable employeeId={detailEmployee.id} />
+                ) : (
+                  <EmployeeOneTimeEarningsTable
+                    pendingOneTimeEarnings={pendingOneTimeEarnings}
+                    onPendingChange={setPendingOneTimeEarnings}
                   />
                 )}
 
