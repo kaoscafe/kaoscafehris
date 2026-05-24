@@ -10,6 +10,7 @@ import {
   Mail, MapPin, Paperclip, Phone, Plus, Trash2, User, X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { PasswordInput } from "@/components/ui/password-input";
 import { extractErrorMessage } from "@/lib/api";
 import { useLogout } from "@/features/auth/use-login";
 import {
@@ -163,8 +164,7 @@ function ChangePasswordSheet({ onClose }: { onClose: () => void }) {
           ].map(({ label, value, setter }) => (
             <div key={label} className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700">{label}</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={value}
                 onChange={(e) => setter(e.target.value)}
                 className={inputClass}

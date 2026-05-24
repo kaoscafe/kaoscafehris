@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/api";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useLogin } from "./use-login";
 import { useAuthStore } from "./auth.store";
 
@@ -97,12 +98,11 @@ export default function LoginPage() {
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
             {...register("employeeId")}
           />
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Enter Password"
             autoComplete="current-password"
             disabled={busy}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
+            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60 border-none"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
             {...register("password")}
           />

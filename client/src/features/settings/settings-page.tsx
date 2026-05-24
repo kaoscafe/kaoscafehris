@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock, Save, Shield, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { PasswordInput } from "@/components/ui/password-input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { extractErrorMessage } from "@/lib/api";
 import {
@@ -369,9 +370,19 @@ function GeneralTab() {
       );
     }
 
+    if (cfg.type === "password") {
+      return (
+        <PasswordInput
+          className={base}
+          value={val}
+          onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+        />
+      );
+    }
+
     return (
       <input
-        type={cfg.type === "password" ? "password" : cfg.type === "number" ? "number" : "text"}
+        type={cfg.type === "number" ? "number" : "text"}
         className={base}
         value={val}
         onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}

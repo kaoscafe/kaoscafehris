@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Building2, Calendar, CheckCircle2, Clock, LogOut, RefreshCw, User, XCircle } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { extractErrorMessage } from "@/lib/api";
 import {
   getKioskStatus, kioskClockIn, kioskClockOut, pingKiosk, uploadKioskSelfie, validateKioskPin,
@@ -120,13 +121,12 @@ function IdEntryScreen({
             className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
           />
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Enter Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && value.trim() && password.trim() && onLookup(value.trim(), password.trim())}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
+            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60 border-none"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
           />
           <button
@@ -703,12 +703,12 @@ function PinSetupScreen({ onDone }: { onDone: (pin: string) => void }) {
         </div>
 
         <div className="w-full max-w-[320px] space-y-3">
-          <input
-            type="password" placeholder="Enter kiosk PIN" value={pin}
+          <PasswordInput
+            placeholder="Enter kiosk PIN" value={pin}
             onChange={(e) => setPin(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !loading && submit()}
             disabled={loading}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 text-center outline-none transition focus:ring-2 disabled:opacity-60"
+            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 text-center outline-none transition focus:ring-2 disabled:opacity-60 border-none"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
           />
           {error && <p className="text-center text-xs text-red-300">{error}</p>}

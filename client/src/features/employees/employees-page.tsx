@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileUp, Loader2, Pencil, Search } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -625,7 +626,7 @@ export default function EmployeesPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{isEdit ? "New Password (Optional)" : "Password *"}</label>
-                      <input {...register("password")} type="password" placeholder={isEdit ? "Leave blank to keep" : "Min. 8 characters"} autoComplete="new-password" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
+                      <PasswordInput {...register("password")} placeholder={isEdit ? "Leave blank to keep" : "Min. 8 characters"} autoComplete="new-password" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
                       {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
                     </div>
                     <div>
