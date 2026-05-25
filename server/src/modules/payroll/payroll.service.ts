@@ -308,7 +308,7 @@ export async function processRun(id: string) {
       ],
     },
     select: { id: true, payType: true, basicSalary: true, hourlyRate: true },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
 
   if (employees.length === 0) {
