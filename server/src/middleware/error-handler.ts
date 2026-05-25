@@ -69,6 +69,11 @@ export function errorHandler(
         });
         return;
       }
+      default: {
+        console.error("Prisma error:", err.code, err.message);
+        res.status(500).json({ message: err.message });
+        return;
+      }
     }
   }
 
@@ -77,6 +82,12 @@ export function errorHandler(
     return;
   }
 
+  if (err instanceof SyntaxError) {
+    console.error("Syntax error:", err.message);
+    res.status(500).json({ message: err.message });
+    return;
+  }
+
   console.error("Unhandled error:", err);
-  res.status(500).json({ message: "Internal server error" });
+  res.status(500).json({ message: err.message || "Internal server error" });
 }

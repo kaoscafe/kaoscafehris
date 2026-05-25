@@ -339,9 +339,13 @@ export async function processRun(id: string) {
 
   function getSetting(key: string, fallback: number): number {
     const row = settingRows.find((r) => r.key === key);
-    if (!row) return fallback;
-    const v = JSON.parse(row.value);
-    return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    if (!row || row.value == null) return fallback;
+    try {
+      const v = JSON.parse(row.value);
+      return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+    } catch {
+      return fallback;
+    }
   }
 
   const lateDeductionPerMinute = getSetting("payroll.late_deduction_per_minute", 0);
