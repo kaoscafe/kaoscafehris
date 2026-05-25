@@ -483,6 +483,155 @@ export async function checkAbsentEmployees() {
   }
 }
 
+// ─── Late clock-in reminder ────────────────────────────────────────────────────
+
+const lateClockInSent = new Set<string>();
+
+function lateClockInHtml(firstName: string, shiftName: string, shiftStart: string) {
+  return `
+    <div style="font-family:'Inter',Arial,sans-serif;color:#1a1a1a;max-width:600px;margin:0 auto">
+      <div style="background:linear-gradient(135deg,#B10B0B,#811C12);padding:24px 28px;border-radius:12px 12px 0 0">
+        ${LOGO}
+        <h2 style="margin:0;color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px">Clock-In Reminder</h2>
+        <p style="margin:6px 0 0;color:rgba(255,255,255,0.7);font-size:13px">Your shift has started</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:28px">
+        <p style="margin:0 0 20px;font-size:14px;color:#374151">
+          Hi <strong>${firstName}</strong>,
+        </p>
+        <p style="margin:0 0 20px;font-size:14px;color:#374151">
+          Our records show that you <strong>have not yet clocked in</strong> for your scheduled shift today.
+          Your shift <strong>${shiftName}</strong> started at <strong>${shiftStart}</strong>.
+        </p>
+        <p style="margin:0 0 20px;font-size:14px;color:#374151">
+          Please clock in as soon as possible.
+          If you believe this is a mistake or you are unable to report today, please contact your manager immediately.
+        </p>
+        <p style="margin:0;font-size:14px;color:#6b7280">
+          Thank you,<br/>KAOS HRIS
+        </p>
+      </div>
+    </div>`;
+}
+
+export async function checkLateClockIns() {
+  try {
+    const tz = COMPANY_TZ;
+    const today = getDateParts(new Date(), tz);
+    const todayUTC = new Date(Date.UTC(today.year, today.month - 1, today.day));
+    const yesterdayUTC = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const REMINDER_MINUTES = 30;
+
+    const allShifts = await prisma.shift.findMany({
+      where: {
+        date: { in: [yesterdayUTC, todayUTC] },
+        status: "PUBLISHED",
+      },
+      include: {
+        assignments: {
+          include: {
+            employee: {
+              select: {
+                payType: true,
+                employmentStatus: true,
+                firstName: true,
+                lastName: true,
+                user: { select: { email: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const shifts = allShifts.filter((s) => {
+      if (s.date.getTime() === todayUTC.getTime()) return true;
+      const startMins = s.startTime.getUTCHours() * 60 + s.startTime.getUTCMinutes();
+      const endMins = s.endTime.getUTCHours() * 60 + s.endTime.getUTCMinutes();
+      return endMins < startMins;
+    });
+
+    if (shifts.length === 0) return;
+
+    const allEmployeeIds = new Set<string>();
+    for (const shift of shifts) {
+      for (const a of shift.assignments) {
+        allEmployeeIds.add(a.employeeId);
+      }
+    }
+
+    const existingRecords = await prisma.attendance.findMany({
+      where: {
+        employeeId: { in: [...allEmployeeIds] },
+        date: { in: [yesterdayUTC, todayUTC] },
+      },
+      select: { employeeId: true, date: true },
+    });
+    const recordKeys = new Set(
+      existingRecords.map((r) => `${r.employeeId}:${r.date.toISOString().slice(0, 10)}`),
+    );
+
+    const approvedLeaves = await prisma.leaveRequest.findMany({
+      where: {
+        employeeId: { in: [...allEmployeeIds] },
+        status: "APPROVED",
+        startDate: { lte: todayUTC },
+        endDate: { gte: yesterdayUTC },
+      },
+      select: { employeeId: true, startDate: true, endDate: true },
+    });
+    const leaveDateKeys = new Set<string>();
+    for (const leave of approvedLeaves) {
+      const start = new Date(leave.startDate);
+      const end = new Date(leave.endDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        leaveDateKeys.add(`${leave.employeeId}:${d.toISOString().slice(0, 10)}`);
+      }
+    }
+
+    for (const shift of shifts) {
+      const { scheduledStart } = getScheduledTimes(shift.date, shift, tz);
+      const minutesSinceStart = (now.getTime() - scheduledStart.getTime()) / (60 * 1000);
+
+      if (minutesSinceStart < REMINDER_MINUTES) continue;
+
+      const dateKey = shift.date.toISOString().slice(0, 10);
+
+      for (const assignment of shift.assignments) {
+        const emp = assignment.employee;
+        if (emp.employmentStatus === "TERMINATED") continue;
+        if (emp.payType !== "HOURLY") continue;
+
+        const eid = assignment.employeeId;
+        const notifyKey = `${eid}:${dateKey}`;
+
+        if (lateClockInSent.has(notifyKey)) continue;
+        if (recordKeys.has(`${eid}:${dateKey}`)) continue;
+        if (leaveDateKeys.has(`${eid}:${dateKey}`)) continue;
+
+        const email = emp.user?.email;
+        if (!email) continue;
+
+        const shiftStartStr = scheduledStart.toLocaleTimeString("en-US", {
+          hour: "numeric", minute: "2-digit", hour12: true, timeZone: tz,
+        });
+
+        await sendMail({
+          to: email,
+          subject: "Reminder: Please clock in for your shift today",
+          html: lateClockInHtml(emp.firstName, shift.name, shiftStartStr),
+        });
+
+        lateClockInSent.add(notifyKey);
+        console.log(`[scheduler] Late clock-in reminder sent to ${eid} (${email})`);
+      }
+    }
+  } catch (err) {
+    console.error("[scheduler] Late clock-in check failed:", err);
+  }
+}
+
 // ─── Start scheduler ──────────────────────────────────────────────────────────
 
 export async function startScheduler() {
@@ -497,4 +646,9 @@ export async function startScheduler() {
     await checkAbsentEmployees();
   }, { timezone: tz });
   console.log(`[scheduler] Hourly absent check scheduled — ${tz}`);
+
+  cron.schedule("*/5 * * * *", async () => {
+    await checkLateClockIns();
+  }, { timezone: tz });
+  console.log(`[scheduler] Every-5-min late clock-in check scheduled — ${tz}`);
 }
