@@ -44,15 +44,6 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-// In production the server serves the built React client
-if (env.isProd) {
-  const clientDist = path.join(__dirname, "..", "..", "client", "dist");
-  app.use(express.static(clientDist));
-  app.use((_req, res) => {
-    res.sendFile(path.join(clientDist, "index.html"));
-  });
-}
-
 // TEMPORARY MIGRATION ROUTE - REMOVE AFTER MIGRATION
 app.get("/temp-download-uploads", (_req, res) => {
   res.setHeader("Content-Type", "application/zip");
@@ -64,6 +55,15 @@ app.get("/temp-download-uploads", (_req, res) => {
   archive.directory(uploadsDir, false);
   archive.finalize();
 });
+
+// In production the server serves the built React client
+if (env.isProd) {
+  const clientDist = path.join(__dirname, "..", "..", "client", "dist");
+  app.use(express.static(clientDist));
+  app.use((_req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
 
 // Error handler (must be last)
 app.use(errorHandler);
