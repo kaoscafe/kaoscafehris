@@ -6,6 +6,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import archiver from "archiver";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { auditContextMiddleware } from "./lib/audit-context.js";
@@ -47,6 +48,18 @@ if (env.isProd) {
     res.sendFile(path.join(clientDist, "index.html"));
   });
 }
+
+// TEMPORARY MIGRATION ROUTE - REMOVE AFTER MIGRATION
+app.get("/temp-download-uploads", (_req, res) => {
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", "attachment; filename=uploads.zip");
+
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.on("error", (err) => res.status(500).send(err.message));
+  archive.pipe(res);
+  archive.directory(uploadsDir, false);
+  archive.finalize();
+});
 
 // Error handler (must be last)
 app.use(errorHandler);
