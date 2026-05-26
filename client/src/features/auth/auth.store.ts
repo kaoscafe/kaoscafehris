@@ -21,7 +21,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "kaos-auth",
-      version: 2, // bump this to invalidate stale cached sessions
+      version: 2, // bump to clear stale cached sessions
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ user: state.user }),
       onRehydrateStorage: () => (state) => {
