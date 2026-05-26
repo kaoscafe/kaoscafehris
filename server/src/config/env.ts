@@ -20,6 +20,8 @@ const schema = z.object({
     .default("12")
     .transform((v) => parseInt(v, 10))
     .pipe(z.number().int().min(8).max(15)),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -42,5 +44,7 @@ export const env = {
   jwtExpiresIn: data.JWT_EXPIRES_IN,
   corsOrigin: data.CORS_ORIGIN,
   bcryptRounds: data.BCRYPT_ROUNDS,
+  resendApiKey: data.RESEND_API_KEY,
+  resendFrom: data.RESEND_FROM,
   isProd: data.NODE_ENV === "production",
 } as const;

@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { env } from "../config/env.js";
 
 export async function sendMail(opts: {
   to: string | string[];
@@ -6,14 +7,16 @@ export async function sendMail(opts: {
   html: string;
   replyTo?: string;
 }) {
-  if (!process.env.RESEND_API_KEY) {
+  if (!env.resendApiKey) {
     console.error("[email] RESEND_API_KEY is not set — skipping email send");
     return;
   }
-  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  const from = env.resendFrom ?? "KAOS HRIS <kaoshris@xn--kaoscaf-hya.com>";
+  const resend = new Resend(env.resendApiKey);
 
   const { error } = await resend.emails.send({
-    from: "KAOS HRIS <kaoshris@xn--kaoscaf-hya.com>",
+    from,
     to: Array.isArray(opts.to) ? opts.to : [opts.to],
     replyTo: opts.replyTo,
     subject: opts.subject,
@@ -22,5 +25,8 @@ export async function sendMail(opts: {
 
   if (error) {
     console.error("[email] Failed to send email:", error);
+    throw new Error(`[email] Send failed: ${error.message}`);
   }
+
+  console.log(`[email] Sent "${opts.subject}" to ${Array.isArray(opts.to) ? opts.to.join(", ") : opts.to}`);
 }
