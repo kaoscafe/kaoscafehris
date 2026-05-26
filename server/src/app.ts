@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createRequire } from "module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import express from "express";
@@ -6,7 +7,10 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import archiver from "archiver";
+
+const require = createRequire(import.meta.url);
+const archiver = require("archiver");
+
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { auditContextMiddleware } from "./lib/audit-context.js";
