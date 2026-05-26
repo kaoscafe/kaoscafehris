@@ -6,6 +6,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import * as tar from "tar";
 
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -42,12 +43,19 @@ app.get("/health", (_req, res) => {
 
 // TEMPORARY MIGRATION ROUTE - REMOVE AFTER MIGRATION
 app.get("/temp-download-uploads", (_req, res) => {
-  try {
-    const files = fs.readdirSync(uploadsDir);
-    res.json({ uploadsDir, files });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message, uploadsDir });
-  }
+  res.setHeader("Content-Type", "application/x-tar");
+  res.setHeader("Content-Disposition", "attachment; filename=uploads.tar");
+
+  const tarCwd = path.dirname(uploadsDir);
+  const tarTarget = path.basename(uploadsDir);
+
+  tar.c({ gzip: false, cwd: tarCwd }, [tarTarget])
+    .on("error", (err: unknown) => {
+      console.error("temp-download-uploads tar error", err);
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: message, uploadsDir });
+    })
+    .pipe(res);
 });
 
 // In production the server serves the built React client
