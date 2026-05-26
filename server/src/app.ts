@@ -29,8 +29,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(auditContextMiddleware);
 
-// Static uploads (selfie photos, etc.)
-app.use("/uploads", express.static(uploadsDir));
+// Selfies are served publicly — filenames are random UUIDs (unguessable).
+// Required by the kiosk which has no JWT token.
+app.use("/uploads/selfies", express.static(path.join(uploadsDir, "selfies")));
+
+// Documents are served via authenticated API routes in employee.routes.ts
+// (/api/employees/:id/documents/:docId/download|preview) — NOT exposed here.
 
 // API routes
 app.use("/api", router);
