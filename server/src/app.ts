@@ -1,5 +1,4 @@
 import path from "node:path";
-import { createRequire } from "module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import express from "express";
@@ -7,9 +6,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-
-const require = createRequire(import.meta.url);
-const archiver = require("archiver");
 
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -46,14 +42,12 @@ app.get("/health", (_req, res) => {
 
 // TEMPORARY MIGRATION ROUTE - REMOVE AFTER MIGRATION
 app.get("/temp-download-uploads", (_req, res) => {
-  res.setHeader("Content-Type", "application/zip");
-  res.setHeader("Content-Disposition", "attachment; filename=uploads.zip");
-
-  const archive = archiver("zip", { zlib: { level: 9 } });
-  archive.on("error", (err: Error) => res.status(500).send(err.message));
-  archive.pipe(res);
-  archive.directory(uploadsDir, false);
-  archive.finalize();
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    res.json({ uploadsDir, files });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message, uploadsDir });
+  }
 });
 
 // In production the server serves the built React client
