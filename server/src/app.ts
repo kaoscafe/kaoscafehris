@@ -18,7 +18,9 @@ fs.mkdirSync(uploadsDir, { recursive: true });
 
 const app = express();
 
-app.set("trust proxy", 1);
+// Railway uses multiple reverse proxies — trust all of them so
+// express-rate-limit reads the real client IP from X-Forwarded-For.
+app.set("trust proxy", true);
 
 // Global middleware
 app.use(helmet());
@@ -30,11 +32,7 @@ app.use(cookieParser());
 app.use(auditContextMiddleware);
 
 // Selfies are served publicly — filenames are random UUIDs (unguessable).
-// Required by the kiosk which has no JWT token.
 app.use("/uploads/selfies", express.static(path.join(uploadsDir, "selfies")));
-
-// Documents are served via authenticated API routes in employee.routes.ts
-// (/api/employees/:id/documents/:docId/download|preview) — NOT exposed here.
 
 // API routes
 app.use("/api", router);

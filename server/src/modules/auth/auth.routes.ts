@@ -7,17 +7,19 @@ import * as authController from "./auth.controller.js";
 
 const router = Router();
 
-// Brute-force guard on login: 10 attempts / 15 min per IP.
+// Brute-force guard: 20 attempts per IP per 15 min.
+// skipSuccessfulRequests = only FAILED attempts count toward the limit.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: { message: "Too many login attempts. Please try again in 15 minutes." },
 });
 
 router.post("/login", loginLimiter, validate(loginSchema), authController.login);
-router.post("/logout", authController.logout); // ← removed authenticate, logout must always succeed
+router.post("/logout", authController.logout);
 router.get("/me", authenticate, authController.me);
 
 export default router;
