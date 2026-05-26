@@ -6,8 +6,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import multer from "multer";
-import * as tar from "tar";
 
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -19,7 +17,6 @@ const uploadsDir = process.env.UPLOADS_DIR ?? path.join(__dirname, "..", "upload
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 const app = express();
-const upload = multer({ dest: "/tmp" });
 
 app.set("trust proxy", 1);
 
@@ -41,37 +38,6 @@ app.use("/api", router);
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
-});
-
-// TEMPORARY MIGRATION ROUTE - REMOVE AFTER MIGRATION
-app.get("/temp-download-uploads", (_req, res) => {
-  res.setHeader("Content-Type", "application/x-tar");
-  res.setHeader("Content-Disposition", "attachment; filename=uploads.tar");
-
-  const tarCwd = path.dirname(uploadsDir);
-  const tarTarget = path.basename(uploadsDir);
-
-  tar.c({ gzip: false, cwd: tarCwd }, [tarTarget])
-    .on("error", (err: unknown) => {
-      console.error("temp-download-uploads tar error", err);
-      const message = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: message, uploadsDir });
-    })
-    .pipe(res);
-});
-
-// TEMPORARY UPLOAD ROUTE - REMOVE AFTER MIGRATION
-app.post("/temp-upload-uploads", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-  try {
-    await tar.x({ file: req.file.path, cwd: "/data" });
-    fs.unlinkSync(req.file.path);
-    res.json({ success: true, message: "Files extracted successfully!" });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: message });
-  }
 });
 
 // In production the server serves the built React client
