@@ -73,7 +73,8 @@ async function requireKioskPin(req: Request, res: Response, next: NextFunction) 
     const configuredPin = await getSetting<string>("kiosk.pin", "");
     if (!configuredPin) return next();
     const provided = (req.headers["x-kiosk-pin"] as string) || req.body?.kioskPin;
-    if (!provided || provided !== configuredPin) throw new AppError(401, "Invalid kiosk PIN");
+    if (!provided || provided !== configuredPin)
+      throw new AppError(403, "Invalid kiosk PIN"); // ← 401 → 403
     next();
   } catch (err) { next(err); }
 }
