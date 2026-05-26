@@ -35,6 +35,7 @@ export function PayslipPreview({ data }: { data: PayslipDetail }) {
     ? Number(data.employee.hourlyRate ?? 0) * 8
     : Math.round((Number(data.employee.basicSalary) / 26) * 100) / 100;
   const hourlyRate = dailyRate / 8;
+  const monthlyRate = Number(data.employee.basicSalary);
 
   const lateMinutesFromLabel = (label: string): number => {
     const m = label.match(/(\d+) min/);
@@ -101,8 +102,17 @@ export function PayslipPreview({ data }: { data: PayslipDetail }) {
           </div>
         </div>
         <div className="mt-1.5 text-xs">
-          <span className="text-gray-500">Daily rate: </span>
-          <span className="font-semibold text-gray-800">{formatCurrency(dailyRate)}</span>
+          {isHourly ? (
+            <>
+              <span className="text-gray-500">Daily rate: </span>
+              <span className="font-semibold text-gray-800">{formatCurrency(dailyRate)}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-gray-500">Monthly rate: </span>
+              <span className="font-semibold text-gray-800">{formatCurrency(monthlyRate)}</span>
+            </>
+          )}
         </div>
         <div className="mt-1.5 text-xs flex gap-4">
           <span><span className="text-gray-500">Actual Worked Hours: </span><span className="font-semibold text-gray-800">{Number(data.totalHoursWorked).toFixed(2)} hrs</span></span>

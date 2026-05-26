@@ -231,11 +231,12 @@ export function renderPayslip(
   const branchCity = branch.city ?? "";
 
   // Pay rate helpers
-  const hourlyRate =
-    employee.payType === "HOURLY"
-      ? Number(employee.hourlyRate ?? 0)
-      : Number(employee.basicSalary) / 26 / 8;
+  const isHourly = employee.payType === "HOURLY";
+  const hourlyRate = isHourly
+    ? Number(employee.hourlyRate ?? 0)
+    : Number(employee.basicSalary) / 26 / 8;
   const dailyRate = hourlyRate * 8;
+  const monthlyRate = Number(employee.basicSalary);
 
   const numHours = (amount: Prisma.Decimal | number | string): string => {
     const n = Number(amount);
@@ -337,9 +338,14 @@ export function renderPayslip(
   infoVal(fmtShort(payDate), col2X + 53, y);
   y += 14;
 
-  // Row 3: Daily rate | Actual worked hours
-  infoLbl("Daily rate:", margin, y);
-  infoVal(PHP(dailyRate), margin + 57, y);
+  // Row 3: Monthly rate (monthly employees) or Daily rate (hourly employees) | Actual worked hours
+  if (isHourly) {
+    infoLbl("Daily rate:", margin, y);
+    infoVal(PHP(dailyRate), margin + 57, y);
+  } else {
+    infoLbl("Monthly rate:", margin, y);
+    infoVal(PHP(monthlyRate), margin + 70, y);
+  }
   infoLbl("Actual worked hours:", col2X, y);
   infoVal(`${Number(payslip.totalHoursWorked).toFixed(2)} hrs`, col2X + 107, y);
   y += 18;
@@ -419,7 +425,7 @@ export function renderPayslip(
 
   y += netH + 12;
 
-  // ── FOOTER ───────────────────────────────────────────────────────────────────
+  // ── FOOTER ────────────────────────────────────────────────────────────────────
   doc
     .font("Helvetica")
     .fontSize(7)
