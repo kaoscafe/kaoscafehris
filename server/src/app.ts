@@ -55,7 +55,7 @@ app.get("/temp-download-uploads", (_req, res) => {
   res.setHeader("Content-Disposition", "attachment; filename=uploads.zip");
 
   const archive = archiver("zip", { zlib: { level: 9 } });
-  archive.on("error", (err) => res.status(500).send(err.message));
+  archive.on("error", (err: Error) => res.status(500).send(err.message));
   archive.pipe(res);
   archive.directory(uploadsDir, false);
   archive.finalize();
