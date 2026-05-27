@@ -123,7 +123,7 @@ export async function attendanceSummary(
   for (const r of records) {
     const hours = toNumber(r.hoursWorked);
     const ot = toNumber(r.overtimeHours);
-    const late = r.lateMinutes ?? 0;
+    const late = r.status === "LATE" ? (r.lateMinutes ?? 0) : 0;
 
     const status = r.status;
     if (status === "PRESENT") totals.present++;
