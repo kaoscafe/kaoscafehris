@@ -139,24 +139,34 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
   const clockOutTime = useWatch({ control, name: "clockOutTime" });
 
   const attendanceSummary = useMemo(() => {
-    const shift = shiftQuery.data;
-    if (!shift || !clockInTime || !clockOutTime) return null;
-    const startMins = new Date(shift.startTime).getUTCHours() * 60 + new Date(shift.startTime).getUTCMinutes();
-    const endMins   = new Date(shift.endTime).getUTCHours()   * 60 + new Date(shift.endTime).getUTCMinutes();
-    const isOvernight = endMins < startMins;
-    const ciMins = parseHHMM(clockInTime);
-    const coMins = parseHHMM(clockOutTime);
-    if (ciMins < 0 || coMins < 0) return null;
-    const lateMins = Math.max(0, ciMins - startMins);
-    let effectiveCo  = coMins;
-    let effectiveEnd = endMins;
-    if (isOvernight) {
-      effectiveEnd = endMins + 24 * 60;
-      if (coMins < startMins) effectiveCo = coMins + 24 * 60;
-    }
-    const otMins = Math.max(0, effectiveCo - effectiveEnd);
-    return { lateMins, otMins };
-  }, [shiftQuery.data, clockInTime, clockOutTime]);
+  const shift = shiftQuery.data;
+  if (!shift || !clockInTime || !clockOutTime) return null;
+
+  const startMins = new Date(shift.startTime).getUTCHours() * 60 + new Date(shift.startTime).getUTCMinutes();
+  const endMins = new Date(shift.endTime).getUTCHours() * 60 + new Date(shift.endTime).getUTCMinutes();
+  const ciMins = parseHHMM(clockInTime);
+  const coMins = parseHHMM(clockOutTime);
+
+  if (ciMins < 0 || coMins < 0) return null;
+
+  const lateMins = Math.max(0, ciMins - startMins);
+
+  let effectiveCo = coMins;
+  let effectiveEnd = endMins;
+
+  // If the entered clock-out is earlier than clock-in, treat it as next day.
+  if (coMins < ciMins) {
+    effectiveCo += 24 * 60;
+  }
+
+  // Overnight shifts also end on the next day.
+  if (endMins < startMins) {
+    effectiveEnd += 24 * 60;
+  }
+
+  const otMins = Math.max(0, effectiveCo - effectiveEnd);
+  return { lateMins, otMins };
+}, [shiftQuery.data, clockInTime, clockOutTime]);
 
   const shift = shiftQuery.data;
 
