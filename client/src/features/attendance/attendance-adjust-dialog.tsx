@@ -91,19 +91,33 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
 
   const tz = COMPANY_TZ;
 
-  useEffect(() => {
-    if (!open) { setLightbox(null); setOtDecision(null); setOverrideOtHours(""); return; }
-    if (!record) return;
+ useEffect(() => {
+  if (!open) {
+    setLightbox(null);
     setOtDecision(null);
     setOverrideOtHours("");
-    reset({
-      date: isoToDateStr(record.clockIn, tz),
-      clockInTime: isoToTimeStr(record.clockIn, tz),
-      clockOutTime: isoToTimeStr(record.clockOut, tz),
-      status: (record.status === "ABSENT" || record.status === "HALF_DAY" || record.status === "ON_LEAVE") ? record.status : "AUTO",
-      remarks: record.remarks ?? "",
-    });
-  }, [open, record, reset, tz]);
+    return;
+  }
+  if (!record) return;
+
+  setOtDecision(null);
+  setOverrideOtHours(
+    record.overtimeHours != null ? String(Number(record.overtimeHours)) : ""
+  );
+
+  reset({
+    date: isoToDateStr(record.clockIn, tz),
+    clockInTime: isoToTimeStr(record.clockIn, tz),
+    clockOutTime: isoToTimeStr(record.clockOut, tz),
+    status:
+      record.status === "ABSENT" ||
+      record.status === "HALF_DAY" ||
+      record.status === "ON_LEAVE"
+        ? record.status
+        : "AUTO",
+    remarks: record.remarks ?? "",
+  });
+}, [open, record, reset, tz]);
 
   const mutation = useMutation({
     mutationFn: async (values: Values) => {
@@ -345,7 +359,7 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.1"
                     min="0"
                     max="24"
                     placeholder={(attendanceSummary.otMins / 60).toFixed(1)}
@@ -353,8 +367,11 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
                     onChange={(e) => setOverrideOtHours(e.target.value)}
                     className={[
                       "w-20 rounded-md border px-2 py-1 text-sm font-semibold text-right",
-                      otDecision === "approved" || shift?.overtimeApproved ? "border-green-300 text-green-600" :
-                      otDecision === "rejected" || shift?.overtimeRejected ? "border-red-300 text-destructive" : "border-amber-300 text-amber-600",
+                      otDecision === "approved" || shift?.overtimeApproved
+                        ? "border-green-300 text-green-600"
+                        : otDecision === "rejected" || shift?.overtimeRejected
+                          ? "border-red-300 text-destructive"
+                          : "border-amber-300 text-amber-600",
                     ].join(" ")}
                   />
                   <span className="text-sm font-medium text-muted-foreground">h</span>
