@@ -88,24 +88,42 @@ export async function attendanceSummary(
     ...(query.branchId ? { branchId: query.branchId } : {}),
   };
 
-  const records = await prisma.attendance.findMany({
-    where,
-    select: {
-      status: true,
-      hoursWorked: true,
-      overtimeHours: true,
-      lateMinutes: true,
-      employee: {
-        select: {
-          id: true,
-          employeeId: true,
-          firstName: true,
-          lastName: true,
-        },
+const records = await prisma.attendance.findMany({
+  where,
+  select: {
+    date: true,
+    status: true,
+    hoursWorked: true,
+    overtimeHours: true,
+    lateMinutes: true,
+    employee: {
+      select: {
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
       },
-      branch: { select: { id: true, name: true } },
     },
-  });
+    branch: { select: { id: true, name: true } },
+  },
+});
+
+const irishRows = records.filter(
+  (r: (typeof records)[number]) => r.employee.employeeId === "KAOS-2025-006"
+);
+
+if (irishRows.length > 0) {
+  console.log(
+    "[reports][attendance][irish]",
+    irishRows.map((r: (typeof irishRows)[number]) => ({
+      date: r.date.toISOString().slice(0, 10),
+      status: r.status,
+      lateMinutes: r.lateMinutes ?? 0,
+      hoursWorked: toNumber(r.hoursWorked),
+      overtimeHours: toNumber(r.overtimeHours),
+    }))
+  );
+}
 
   const empMap = new Map<string, AttendanceReportRow>();
   const branchMap = new Map<string, AttendanceReportBranchRow>();
