@@ -62,6 +62,11 @@ export function hoursBetween(from: Date, to: Date): number {
   return Math.max(0, Math.round(((to.getTime() - from.getTime()) / 3_600_000) * 100) / 100);
 }
 
+function normalizeClockOutNextDay(clockIn: Date, clockOut: Date | null): Date | null {
+  if (!clockOut) return null;
+  if (clockOut > clockIn) return clockOut;
+  return new Date(clockOut.getTime() + 24 * 60 * 60 * 1000);
+}
 /**
  * Find the employee's scheduled shift for a given date (if any).
  * When the employee has multiple shifts on the same day, returns the one
@@ -504,10 +509,9 @@ export async function clockOut(attendanceId: string, input: ClockOutInput) {
   if (!record) throw new AppError(404, "Attendance record not found");
   if (record.clockOut) throw new AppError(409, "Already clocked out");
 
-  const clockOutAt = input.clockOut ? new Date(input.clockOut) : new Date();
-  if (clockOutAt <= record.clockIn) {
-    throw new AppError(400, "Clock-out time must be after clock-in");
-  }
+  let clockOutAt = input.clockOut ? new Date(input.clockOut) : new Date();
+  clockOutAt = normalizeClockOutNextDay(record.clockIn, clockOutAt)!;
+
   const minClockOutAt = new Date(record.clockIn.getTime() + 60 * 60 * 1000);
   if (clockOutAt < minClockOutAt) {
     throw new AppError(400, "Cannot clock out within 1 hour of clocking in");
@@ -552,14 +556,12 @@ export async function manualAdjust(id: string, input: ManualAdjustInput) {
   if (input.remarks !== undefined) data.remarks = input.remarks;
 
   const nextClockIn = input.clockIn !== undefined ? new Date(input.clockIn) : existing.clockIn;
-  const nextClockOut =
+  const rawNextClockOut =
     input.clockOut === undefined
       ? existing.clockOut
       : input.clockOut ? new Date(input.clockOut) : null;
 
-  if (nextClockOut && nextClockOut <= nextClockIn) {
-    throw new AppError(400, "Clock-out time must be after clock-in");
-  }
+  const nextClockOut = normalizeClockOutNextDay(nextClockIn, rawNextClockOut);
 
   // If clockIn changed, resolve the correct date and shift for the new time.
   let nextDate = existing.date;
@@ -719,20 +721,23 @@ export async function manualCreate(input: ManualCreateInput) {
   let overtimeHours: number | undefined;
   let undertimeMinutes: number | undefined;
 
-  if (input.clockOut) {
-    clockOutAt = new Date(input.clockOut);
-    // If clockIn was auto-corrected for an overnight shift, shift clockOut
-    // forward as well — the admin likely entered both on the same (wrong) day.
-    if (correctedClockIn.getTime() !== clockInAt.getTime()) {
-      clockOutAt = new Date(clockOutAt.getTime() + 24 * 60 * 60 * 1000);
-    }
-    if (clockOutAt <= correctedClockIn) {
-      throw new AppError(400, "Clock-out time must be after clock-in");
-    }
-    hoursWorked = hoursBetween(correctedClockIn, clockOutAt);
-    if (clockOutAt < scheduledEnd) undertimeMinutes = diffMinutes(clockOutAt, scheduledEnd);
-    if (clockOutAt > scheduledEnd) overtimeHours = hoursBetween(scheduledEnd, clockOutAt);
+ if (input.clockOut) {
+  clockOutAt = new Date(input.clockOut);
+
+  // If the entered clock-out is earlier than or equal to clock-in,
+  // treat it as next day. This matches the UI behavior for entries like
+  // 6:45 AM → 12:54 AM, which should mean 12:54 AM of the following day.
+  clockOutAt = normalizeClockOutNextDay(correctedClockIn, clockOutAt)!;
+
+  const minClockOutAt = new Date(correctedClockIn.getTime() + 60 * 60 * 1000);
+  if (clockOutAt < minClockOutAt) {
+    throw new AppError(400, "Cannot clock out within 1 hour of clocking in");
   }
+
+  hoursWorked = hoursBetween(correctedClockIn, clockOutAt);
+  if (clockOutAt < scheduledEnd) undertimeMinutes = diffMinutes(clockOutAt, scheduledEnd);
+  if (clockOutAt > scheduledEnd) overtimeHours = hoursBetween(scheduledEnd, clockOutAt);
+}
 
   return prisma.$transaction(async (tx) => {
     // Ensure a Shift + ShiftAssignment exist for the admin-selected shift type
