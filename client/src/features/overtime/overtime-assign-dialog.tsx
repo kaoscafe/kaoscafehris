@@ -69,8 +69,9 @@ export default function OvertimeAssignDialog({ open, onOpenChange, editing }: Pr
 
   const employeesQuery = useQuery({
     queryKey: ["employees"],
-    queryFn: () => listEmployees({ status: "FULL_TIME" }),
+    queryFn: () => listEmployees({}),
     enabled: open,
+    select: (data) => data.filter((employee) => employee.employmentStatus !== "TERMINATED" && employee.position !== "Administrator"),
   });
 
   const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormValues>({
