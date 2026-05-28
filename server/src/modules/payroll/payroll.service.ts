@@ -266,8 +266,9 @@ function sumByDeductionType(
 
 /**
  * Process a DRAFT run: generate a payslip for every active employee in the
- * branch, plus terminated and reserved employees who still have attendance
- * records within the payroll period. Basic pay is computed from attendance (HOURLY)
+ * branch, plus terminated employees who recorded non-absent attendance in the
+ * payroll period and reserved employees who still have attendance records
+ * within the period. Basic pay is computed from attendance (HOURLY)
  * (MONTHLY_FIXED). Deductions are pulled from each employee's assigned
  * deductions (set on the employee profile) — nothing is hardcoded. All amounts
  * are adjustable per payslip after generation.
@@ -289,7 +290,20 @@ export async function processRun(id: string) {
       branchId: run.branchId,
       OR: [
         {
-          employmentStatus: { in: ["FULL_TIME", "PART_TIME", "TRAINEE", "TERMINATED"] },
+          employmentStatus: { in: ["FULL_TIME", "PART_TIME", "TRAINEE"] },
+          OR: [
+            { payType: "MONTHLY_FIXED", basicSalary: { gt: 0 } },
+            { payType: "HOURLY", hourlyRate: { not: null } },
+          ],
+        },
+        {
+          employmentStatus: "TERMINATED",
+          attendanceRecords: {
+            some: {
+              date: { gte: run.periodStart, lte: run.periodEnd },
+              status: { not: "ABSENT" },
+            },
+          },
           OR: [
             { payType: "MONTHLY_FIXED", basicSalary: { gt: 0 } },
             { payType: "HOURLY", hourlyRate: { not: null } },
@@ -1245,6 +1259,11 @@ export async function processRun(id: string) {
 
       const grossPay = round2(basicPay + overtimePay + nightDiffPay + holidayPayTotal + bonuses + allowances + paidLeaveCredits + otherEarningsTotal);
       const netPay   = round2(grossPay - totalDeductions);
+
+      if (netPay === 0) {
+        console.log(`[payroll:payslip] SKIP emp=${emp.id} netPay=0`);
+        continue;
+      }
 
       console.log(`[payroll:payslip] CREATE emp=${emp.id} basicPay=${basicPay} overtimePay=${overtimePay} holidayPay=${holidayPayTotal} nightDiff=${nightDiffPay} paidLeave=${paidLeaveCredits} bonuses=${bonuses} allowances=${allowances} otherEarnings=${otherEarningsTotal} grossPay=${grossPay} totalDeductions=${totalDeductions} netPay=${netPay} totalScheduledHours=${totalScheduledHours} totalHours=${totalHoursWorked} totalOtHours=${totalOtHours} totalLateMinutes=${lateMinutesMap.get(emp.id) ?? 0} holidayEarningsCount=${holidayEarnings.length}`);
 

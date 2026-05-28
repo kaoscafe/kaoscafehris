@@ -257,7 +257,9 @@ export default function EmployeesPage() {
       return createEmployee(payload);
     },
     onSuccess: async (created) => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
+      qc.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "employees",
+      });
       qc.invalidateQueries({ queryKey: ["branches"] });
       if (isEdit) {
         toast("Employee updated", "success");
@@ -335,7 +337,9 @@ export default function EmployeesPage() {
   const importMutation = useMutation({
     mutationFn: (file: File) => importEmployeesCsv(file),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
+      qc.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "employees",
+      });
       toast("Employees imported successfully", "success");
       setImportPreview(null);
       setPendingFile(null);

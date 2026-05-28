@@ -68,7 +68,9 @@ export default function EmployeeDefaultShiftsDialog({ open, onOpenChange, branch
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employees"] });
+      qc.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "employees",
+      });
       qc.invalidateQueries({ queryKey: ["shifts"] });
       toast("Default shift saved and shifts generated", "success");
       setSelectedEmployeeId("");
