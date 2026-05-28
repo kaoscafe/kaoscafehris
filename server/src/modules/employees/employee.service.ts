@@ -4,6 +4,7 @@ import prisma from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/error-handler.js";
 import { logAudit } from "../../lib/audit.js";
+import { sendMail } from "../../lib/email.js";
 import type {
   CreateEmployeeInput,
   UpdateEmployeeInput,
@@ -37,6 +38,77 @@ const employeeListInclude = {
     },
   },
 } as const;
+
+const LOGO = `<img src="https://www.xn--kaoscaf-hya.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
+
+type WelcomeEmailEmployee = {
+  firstName: string;
+  lastName: string;
+  employeeId: string;
+  position: string;
+  employmentStatus: string;
+  dateHired: Date;
+  branch?: { name: string } | null;
+  user?: { email: string; role: string } | null;
+};
+
+async function sendNewEmployeeWelcomeEmail(employee: WelcomeEmailEmployee, password: string) {
+  const recipientEmail = employee.user?.email;
+  if (!recipientEmail) return;
+
+  const employeeName = `${employee.firstName} ${employee.lastName}`;
+  const branchName = employee.branch?.name ?? "Unassigned";
+  const hireDate = new Date(employee.dateHired).toISOString().slice(0, 10);
+  const role = employee.user?.role ?? "EMPLOYEE";
+
+  await sendMail({
+    to: recipientEmail,
+    subject: "Your KAOS HRIS account is ready",
+    html: `
+      <div style="font-family:'Inter',Arial,sans-serif;color:#1a1a1a;max-width:640px;margin:0 auto">
+        <div style="background:linear-gradient(135deg,#8C1515,#811C12);padding:24px 28px;border-radius:12px 12px 0 0">
+          ${LOGO}
+          <h2 style="margin:0;color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px">Welcome to KAOS HRIS</h2>
+          <p style="margin:6px 0 0;color:rgba(255,255,255,0.7);font-size:13px">Your employee account has been created</p>
+        </div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:28px">
+          <p style="margin:0 0 8px;font-size:14px;color:#374151">Hi ${employee.firstName},</p>
+          <p style="margin:0 0 20px;font-size:14px;color:#374151">Your KAOS HRIS account is ready. Below are your account details and temporary login credentials.</p>
+
+          <table style="border-collapse:collapse;font-size:14px;width:100%;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+            <tr style="border-bottom:1px solid #e2e8f0">
+              <td style="padding:11px 16px;color:#6b7280;font-weight:500;width:150px;background:#f8fafc">Employee Name</td>
+              <td style="padding:11px 16px;color:#111827;font-weight:600">${employeeName}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0">
+              <td style="padding:11px 16px;color:#6b7280;font-weight:500;background:#f8fafc">Employee ID</td>
+              <td style="padding:11px 16px;color:#111827">${employee.employeeId}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0">
+              <td style="padding:11px 16px;color:#6b7280;font-weight:500;background:#f8fafc">Position</td>
+              <td style="padding:11px 16px;color:#111827">${employee.position}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0">
+              <td style="padding:11px 16px;color:#6b7280;font-weight:500;background:#f8fafc">Employment Status</td>
+              <td style="padding:11px 16px;color:#111827">${employee.employmentStatus}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0">
+              <td style="padding:11px 16px;color:#6b7280;font-weight:500;background:#f8fafc">Date Hired</td>
+              <td style="padding:11px 16px;color:#111827">${hireDate}</td>
+            </tr>
+          </table>
+
+          <div style="margin-top:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">
+            <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827">Temporary Login Credentials</p>
+            <p style="margin:0 0 6px;font-size:14px;color:#374151"><strong>Email:</strong> ${recipientEmail}</p>
+            <p style="margin:0 0 6px;font-size:14px;color:#374151"><strong>Password:</strong> ${password}</p>
+            <p style="margin:10px 0 0;font-size:12px;color:#6b7280">For security, please change your password after your first login.</p>
+          </div>
+        </div>
+      </div>
+    `,
+  }).catch(console.error);
+}
 
 export async function listEmployees(query: ListEmployeeQuery) {
   const where: Prisma.EmployeeWhereInput = {};
@@ -129,6 +201,23 @@ export async function createEmployee(input: CreateEmployeeInput) {
     recordId: employee.id,
     newValues: employee,
   });
+
+  void sendNewEmployeeWelcomeEmail(
+    {
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      employeeId: employee.employeeId,
+      position: employee.position,
+      employmentStatus: employee.employmentStatus,
+      dateHired: employee.dateHired,
+      branch: employee.branch,
+      user: employee.user,
+    },
+    input.password
+  ).catch((error) => {
+    console.error("[employees] Failed to send welcome email", error);
+  });
+
   return employee;
 }
 
