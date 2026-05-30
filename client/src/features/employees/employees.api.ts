@@ -135,9 +135,8 @@ export async function updateEmployee(
   return data.data;
 }
 
-export async function deactivateEmployee(id: string): Promise<Employee> {
-  const { data } = await api.delete<{ data: Employee }>(`/employees/${id}`);
-  return data.data;
+export async function deleteEmployee(id: string): Promise<void> {
+  await api.delete(`/employees/${id}`);
 }
 
 export interface ImportResult {

@@ -5,6 +5,9 @@ import { env } from "../../config/env.js";
 import { AppError } from "../../middleware/error-handler.js";
 import { logAudit } from "../../lib/audit.js";
 import { sendMail } from "../../lib/email.js";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import type {
   CreateEmployeeInput,
   UpdateEmployeeInput,
@@ -63,17 +66,24 @@ async function sendNewEmployeeWelcomeEmail(employee: WelcomeEmailEmployee, passw
 
   await sendMail({
     to: recipientEmail,
-    subject: "Your KAOS HRIS account is ready",
+    subject: "Welcome to KAOS - Your Employee Portal is Now Ready!",
     html: `
       <div style="font-family:'Inter',Arial,sans-serif;color:#1a1a1a;max-width:640px;margin:0 auto">
         <div style="background:linear-gradient(135deg,#8C1515,#811C12);padding:24px 28px;border-radius:12px 12px 0 0">
           ${LOGO}
-          <h2 style="margin:0;color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px">Welcome to KAOS HRIS</h2>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,0.7);font-size:13px">Your employee account has been created</p>
+          <h2 style="margin:0;color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px">Welcome to KAOS Employee Portal</h2>
+          <p style="margin:6px 0 0;color:rgba(255,255,255,0.7);font-size:13px">Your portal access has been activated</p>
         </div>
         <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:28px">
           <p style="margin:0 0 8px;font-size:14px;color:#374151">Hi ${employee.firstName},</p>
-          <p style="margin:0 0 20px;font-size:14px;color:#374151">Your KAOS HRIS account is ready. Below are your account details and temporary login credentials.</p>
+          <p style="margin:0 0 20px;font-size:14px;color:#374151">We're pleased to inform you that the KAOS Employee Portal is now live. Through this portal, you can conveniently:</p>
+          <ul style="margin:0 0 20px;padding-left:20px;color:#374151;font-size:14px">
+            <li>View your work schedule</li>
+            <li>File leave request</li>
+            <li>Check your payslips</li>
+            <li>Monitor your attendance</li>
+          </ul>
+          <p style="margin:0 0 20px;font-size:14px;color:#374151">Access the portal here: <a href="https://www.xn--kaoscaf-hya.com/login" style="color:#8C1515;font-weight:700">https://www.xn--kaoscaf-hya.com/login</a></p>
 
           <table style="border-collapse:collapse;font-size:14px;width:100%;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
             <tr style="border-bottom:1px solid #e2e8f0">
@@ -100,7 +110,7 @@ async function sendNewEmployeeWelcomeEmail(employee: WelcomeEmailEmployee, passw
 
           <div style="margin-top:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">
             <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827">Temporary Login Credentials</p>
-            <p style="margin:0 0 6px;font-size:14px;color:#374151"><strong>Email:</strong> ${recipientEmail}</p>
+            <p style="margin:0 0 6px;font-size:14px;color:#374151"><strong>ID NUMBER:</strong> ${employee.employeeId}</p>
             <p style="margin:0 0 6px;font-size:14px;color:#374151"><strong>Password:</strong> ${password}</p>
             <p style="margin:10px 0 0;font-size:12px;color:#6b7280">For security, please change your password after your first login.</p>
           </div>
@@ -608,4 +618,54 @@ export async function deactivateEmployee(id: string) {
     newValues: updated,
   });
   return updated;
+}
+
+export async function deleteEmployee(id: string) {
+  const existing = await prisma.employee.findUnique({
+    where: { id },
+    include: { user: true, documents: true },
+  });
+  if (!existing) throw new AppError(404, "Employee not found");
+
+  // Prevent hard-delete if there are dependent records that must remain auditable
+  const [attendanceCount, leaveCount, payslipCount, overtimeCount, shiftAssignmentCount] = await Promise.all([
+    prisma.attendance.count({ where: { employeeId: id } }),
+    prisma.leaveRequest.count({ where: { employeeId: id } }),
+    prisma.payslip.count({ where: { employeeId: id } }),
+    prisma.overtimeRequest.count({ where: { employeeId: id } }),
+    prisma.shiftAssignment.count({ where: { employeeId: id } }),
+  ]);
+
+  const blockers: string[] = [];
+  if (attendanceCount > 0) blockers.push("attendance records");
+  if (leaveCount > 0) blockers.push("leave requests");
+  if (payslipCount > 0) blockers.push("payslips");
+  if (overtimeCount > 0) blockers.push("overtime requests");
+  if (shiftAssignmentCount > 0) blockers.push("shift assignments");
+
+  if (blockers.length > 0) {
+    throw new AppError(400, `Cannot delete employee with existing ${blockers.join(", ")}`);
+  }
+
+  const docFiles = existing.documents.map((d) => d.filename);
+  const before = { ...existing, user: stripPassword(existing.user) };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.employee.delete({ where: { id } });
+    // Remove associated user account (employee.userId is unique)
+    await tx.user.delete({ where: { id: existing.userId } });
+  });
+
+  await logAudit({ action: "DELETE", tableName: "employees", recordId: id, oldValues: before });
+
+  // Clean up uploaded document files (best-effort)
+  const uploadsBase = process.env.UPLOADS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "uploads");
+  const documentsDir = path.join(uploadsBase, "documents");
+  for (const f of docFiles) {
+    try {
+      await fs.unlink(path.join(documentsDir, f));
+    } catch {
+      // ignore failures to remove files — DB deletion already done
+    }
+  }
 }

@@ -70,6 +70,19 @@ export async function deactivate(
   }
 }
 
+export async function remove(
+  req: Request<IdParams>,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    await employeeService.deleteEmployee(req.params.id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // --- Employee Deductions ----------------------------------------------------
 
 type EdParams = { id: string; edId: string };

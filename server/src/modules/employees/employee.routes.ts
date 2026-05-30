@@ -49,7 +49,8 @@ router.post("/", authorize("ADMIN"), validate(createEmployeeSchema), employeeCon
 router.post("/import/preview", authorize("ADMIN"), csvUpload.single("file"), employeeController.previewImportCsv);
 router.post("/import", authorize("ADMIN"), csvUpload.single("file"), employeeController.importCsv);
 router.put("/:id", authorize("ADMIN"), validate(updateEmployeeSchema), employeeController.update);
-router.delete("/:id", authorize("ADMIN"), employeeController.deactivate);
+// DELETE now performs permanent (hard) delete — only allowed when there are no dependent records
+router.delete("/:id", authorize("ADMIN"), employeeController.remove);
 
 // Employee deduction assignments
 router.get("/:id/deductions", authorize("ADMIN"), employeeController.listDeductions);

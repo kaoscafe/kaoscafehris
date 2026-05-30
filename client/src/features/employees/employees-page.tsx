@@ -16,6 +16,7 @@ import {
   listEmployees,
   createEmployee,
   updateEmployee,
+  deleteEmployee,
   type Employee,
   type EmploymentStatus,
   type ImportPreview,
@@ -304,6 +305,19 @@ export default function EmployeesPage() {
     },
     onError: (err) => toast(extractErrorMessage(err), "error"),
   });
+    const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+
+    const deleteMutation = useMutation({
+      mutationFn: (id: string) => deleteEmployee(id),
+      onSuccess: () => {
+        qc.invalidateQueries({
+          predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "employees",
+        });
+        toast("Employee permanently deleted", "success");
+        setDeletingEmployee(null);
+      },
+      onError: (err) => toast(extractErrorMessage(err), "error"),
+    });
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -570,6 +584,17 @@ export default function EmployeesPage() {
                     <Pencil className="h-3.5 w-3.5" />
                     Edit
                   </button>
+                  <button
+                    className="ml-3 inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                    onClick={(evt) => {
+                      evt.stopPropagation();
+                      setDeletingEmployee(e);
+                    }}
+                    disabled={deleteMutation.isPending}
+                    title="Permanently delete employee"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -593,6 +618,28 @@ export default function EmployeesPage() {
           }}
         />
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deletingEmployee} onOpenChange={(open) => { if (!open) setDeletingEmployee(null); }}>
+        <DialogHeader>
+          <DialogTitle>Permanently delete employee</DialogTitle>
+          <DialogDescription>
+            This action cannot be undone. All employee account and profile data will be removed if there are no dependent records. Are you sure you want to continue?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <div className="flex items-center justify-end gap-3">
+            <button className="rounded-lg px-4 py-2 border" onClick={() => setDeletingEmployee(null)} disabled={deleteMutation.isPending}>Cancel</button>
+            <button
+              className="rounded-lg px-4 py-2 bg-red-600 text-white"
+              onClick={() => deletingEmployee && deleteMutation.mutate(deletingEmployee.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete permanently"}
+            </button>
+          </div>
+        </DialogFooter>
+      </Dialog>
 
       {/* Add / Edit Employee Dialog */}
       <Dialog
