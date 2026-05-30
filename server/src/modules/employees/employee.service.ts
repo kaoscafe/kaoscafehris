@@ -627,32 +627,44 @@ export async function deleteEmployee(id: string) {
   });
   if (!existing) throw new AppError(404, "Employee not found");
 
-  // Prevent hard-delete if there are dependent records that must remain auditable
-  const [attendanceCount, leaveCount, payslipCount, overtimeCount, shiftAssignmentCount] = await Promise.all([
-    prisma.attendance.count({ where: { employeeId: id } }),
-    prisma.leaveRequest.count({ where: { employeeId: id } }),
-    prisma.payslip.count({ where: { employeeId: id } }),
-    prisma.overtimeRequest.count({ where: { employeeId: id } }),
-    prisma.shiftAssignment.count({ where: { employeeId: id } }),
-  ]);
-
-  const blockers: string[] = [];
-  if (attendanceCount > 0) blockers.push("attendance records");
-  if (leaveCount > 0) blockers.push("leave requests");
-  if (payslipCount > 0) blockers.push("payslips");
-  if (overtimeCount > 0) blockers.push("overtime requests");
-  if (shiftAssignmentCount > 0) blockers.push("shift assignments");
-
-  if (blockers.length > 0) {
-    throw new AppError(400, `Cannot delete employee with existing ${blockers.join(", ")}`);
-  }
-
   const docFiles = existing.documents.map((d) => d.filename);
   const before = { ...existing, user: stripPassword(existing.user) };
 
+  // Cascade delete: remove all related transaction records first, then employee and user
   await prisma.$transaction(async (tx) => {
+    // Delete attendance records
+    await tx.attendance.deleteMany({ where: { employeeId: id } });
+
+    // Delete payslips and their itemized deductions/earnings
+    const payslips = await tx.payslip.findMany({ where: { employeeId: id }, select: { id: true } });
+    const payslipIds = payslips.map((p) => p.id);
+    if (payslipIds.length > 0) {
+      await tx.payslipDeduction.deleteMany({ where: { payslipId: { in: payslipIds } } });
+      await tx.payslipEarning.deleteMany({ where: { payslipId: { in: payslipIds } } });
+    }
+    await tx.payslip.deleteMany({ where: { employeeId: id } });
+
+    // Delete leave requests and balances
+    await tx.leaveRequest.deleteMany({ where: { employeeId: id } });
+    await tx.leaveBalance.deleteMany({ where: { employeeId: id } });
+
+    // Delete overtime requests and schedules
+    await tx.overtimeRequest.deleteMany({ where: { employeeId: id } });
+    await tx.overtimeSchedule.deleteMany({ where: { employeeId: id } });
+
+    // Delete shift assignments
+    await tx.shiftAssignment.deleteMany({ where: { employeeId: id } });
+
+    // Delete employee deductions, earnings, and one-time-earnings
+    await tx.employeeDeduction.deleteMany({ where: { employeeId: id } });
+    await tx.employeeEarning.deleteMany({ where: { employeeId: id } });
+    await tx.employeeOneTimeEarning.deleteMany({ where: { employeeId: id } });
+
+    // Delete employee documents
+    await tx.employeeDocument.deleteMany({ where: { employeeId: id } });
+
+    // Finally, delete the employee and associated user
     await tx.employee.delete({ where: { id } });
-    // Remove associated user account (employee.userId is unique)
     await tx.user.delete({ where: { id: existing.userId } });
   });
 
