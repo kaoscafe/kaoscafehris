@@ -42,7 +42,7 @@ const employeeListInclude = {
   },
 } as const;
 
-const LOGO = `<img src="https://www.xn--kaoscaf-hya.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
+const LOGO = `<img src="https://www.kaoscafé.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
 
 type WelcomeEmailEmployee = {
   firstName: string;
@@ -83,7 +83,7 @@ async function sendNewEmployeeWelcomeEmail(employee: WelcomeEmailEmployee, passw
             <li>Check your payslips</li>
             <li>Monitor your attendance</li>
           </ul>
-          <p style="margin:0 0 20px;font-size:14px;color:#374151">Access the portal here: <a href="https://www.xn--kaoscaf-hya.com/login" style="color:#8C1515;font-weight:700">https://www.xn--kaoscaf-hya.com/login</a></p>
+          <p style="margin:0 0 20px;font-size:14px;color:#374151">Access the portal here: <a href="https://www.kaoscafé.com/login" style="color:#8C1515;font-weight:700">https://www.kaoscafé.com/login</a></p>
 
           <table style="border-collapse:collapse;font-size:14px;width:100%;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
             <tr style="border-bottom:1px solid #e2e8f0">

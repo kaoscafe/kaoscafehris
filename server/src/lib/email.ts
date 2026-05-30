@@ -12,7 +12,7 @@ export async function sendMail(opts: {
     return;
   }
 
-  const from = env.resendFrom ?? "KAOS HRIS <kaoshris@xn--kaoscaf-hya.com>";
+  const from = env.resendFrom ?? "KAOS HRIS <kaoshris@kaoscafé.com>";
   const resend = new Resend(env.resendApiKey);
 
   const { error } = await resend.emails.send({

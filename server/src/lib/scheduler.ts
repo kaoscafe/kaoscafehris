@@ -47,7 +47,7 @@ function getTomorrow(tz: string) {
 
 // ─── Email templates ──────────────────────────────────────────────────────────
 
-const LOGO = `<img src="https://www.xn--kaoscaf-hya.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
+const LOGO = `<img src="https://www.kaoscafé.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
 
 function milestone3MonthHtml(employees: { name: string; employeeId: string; position: string; branch: string; dateHired: Date }[], tz: string) {
   const rows = employees.map((e) => `

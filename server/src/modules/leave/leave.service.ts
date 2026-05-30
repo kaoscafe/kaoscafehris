@@ -12,7 +12,7 @@ import type {
   UpsertBalanceForAllInput,
 } from "./leave.schema.js";
 
-const LOGO = `<img src="https://www.xn--kaoscaf-hya.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
+const LOGO = `<img src="https://www.kaoscafé.com/kaos-logo.svg" alt="KAOS Café" style="height:36px;width:auto;display:block;margin-bottom:12px;filter:brightness(0) invert(1)" />`;
 
 const LEAVE_LABEL: Record<string, string> = {
   VACATION: "Vacation",
