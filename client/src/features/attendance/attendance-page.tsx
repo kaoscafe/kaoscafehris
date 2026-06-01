@@ -297,11 +297,15 @@ const apiStatus = (statusFilter === "LATE" ? "LATE" : statusFilter === "ABSENT" 
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-gray-800">{r.employee.firstName} {r.employee.lastName}</p>
-                          {r.employee.employmentStatus === "TERMINATED" && (
+                          {r.employee.employmentStatus === "TERMINATED" ? (
                             <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-red-50 text-red-600 ring-1 ring-inset ring-red-200">
                               Terminated
                             </span>
-                          )}
+                          ) : r.employee.dateTerminated ? (
+                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">
+                              Reactivated
+                            </span>
+                          ) : null}
                         </div>
                         <p className="text-xs text-gray-400">{r.employee.employeeId}</p>
                       </div>
