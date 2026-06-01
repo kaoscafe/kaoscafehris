@@ -73,11 +73,14 @@ export async function login(input: LoginInput): Promise<{
     throw new AppError(401, "ID does not exist or incorrect password");
   }
 
-  // isActive covers both manually deactivated AND terminated employees
-  // (deactivateEmployee sets isActive=false + employmentStatus=TERMINATED).
-  // Post-login termination is caught by the authenticate middleware on every request.
-  if (!user.isActive) {
-    throw new AppError(403, "Account has been deactivated. Contact your administrator.");
+  const terminated = user.employee?.employmentStatus === "TERMINATED";
+  if (!user.isActive || terminated) {
+    throw new AppError(
+      403,
+      terminated
+        ? "Your employment has been terminated. Contact your administrator."
+        : "Account has been deactivated. Contact your administrator."
+    );
   }
 
   await prisma.user.update({
@@ -121,10 +124,12 @@ export async function getCurrentUser(userId: string): Promise<AuthenticatedUser>
     throw new AppError(404, "User not found");
   }
 
-  // isActive check covers terminated employees — middleware handles
-  // post-login termination before this function is ever called.
-  if (!user.isActive) {
-    throw new AppError(403, "Account has been deactivated");
+  const terminated = user.employee?.employmentStatus === "TERMINATED";
+  if (!user.isActive || terminated) {
+    throw new AppError(
+      403,
+      terminated ? "Your employment has been terminated." : "Account has been deactivated"
+    );
   }
 
   return {

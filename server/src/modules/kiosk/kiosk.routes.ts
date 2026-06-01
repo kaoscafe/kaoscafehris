@@ -97,12 +97,20 @@ router.get("/status/:employeeId", async (req, res, next) => {
     const emp = await prisma.employee.findUnique({
       where: { employeeId: req.params.employeeId },
       select: {
-        id: true, employeeId: true, firstName: true, lastName: true,
-        position: true, profilePhoto: true,
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        position: true,
+        profilePhoto: true,
+        employmentStatus: true,
         branch: { select: { id: true, name: true } },
       },
     });
     if (!emp) throw new AppError(404, "Employee not found");
+    if (emp.employmentStatus === "TERMINATED") {
+      throw new AppError(403, "Your employment has been terminated. Access is no longer allowed.");
+    }
 
     const now = new Date();
     const dateKey = await localCalendarDateOf(now);
@@ -225,11 +233,20 @@ router.post("/validate-employee", async (req, res, next) => {
   try {
     const { employeeId, password } = req.body as { employeeId?: string; password?: string };
     if (!employeeId || !password) throw new AppError(400, "Missing credentials");
-    const emp = await prisma.employee.findUnique({ where: { employeeId }, select: { userId: true } });
+    const emp = await prisma.employee.findUnique({
+      where: { employeeId },
+      select: {
+        id: true,
+        employmentStatus: true,
+        user: { select: { isActive: true, password: true } },
+      },
+    });
     if (!emp) throw new AppError(404, "Employee not found");
-    const user = await prisma.user.findUnique({ where: { id: emp.userId }, select: { password: true } });
-    if (!user) throw new AppError(404, "Employee user not found");
-    const ok = await bcrypt.compare(password, user.password);
+    if (emp.employmentStatus === "TERMINATED" || emp.user?.isActive === false) {
+      throw new AppError(403, "Your employment has been terminated or account is deactivated");
+    }
+    if (!emp.user) throw new AppError(404, "Employee user not found");
+    const ok = await bcrypt.compare(password, emp.user.password);
     if (!ok) throw new AppError(401, "Invalid credentials");
     res.json({ ok: true });
   } catch (err) { next(err); }
