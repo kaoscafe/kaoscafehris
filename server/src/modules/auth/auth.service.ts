@@ -32,6 +32,7 @@ const EMPLOYEE_SELECT = {
   position: true,
   branchId: true,
   profilePhoto: true,
+  employmentStatus: true,
 } as const;
 
 function signToken(payload: AuthPayload): string {
@@ -46,7 +47,7 @@ export async function login(input: LoginInput): Promise<{
   user: AuthenticatedUser;
 }> {
   // Try employee ID lookup first, fall back to email (for admin accounts).
-  let user = null as Awaited<ReturnType<typeof prisma.user.findUnique>> & { employee: { id: string; employeeId: string; firstName: string; lastName: string; position: string; branchId: string; profilePhoto: string | null } | null } | null;
+  let user = null as Awaited<ReturnType<typeof prisma.user.findUnique>> & { employee: { id: string; employeeId: string; firstName: string; lastName: string; position: string; branchId: string; profilePhoto: string | null; employmentStatus: string } | null } | null;
 
   const emp = await prisma.employee.findUnique({
     where: { employeeId: input.employeeId },
@@ -115,6 +116,7 @@ export async function getCurrentUser(userId: string): Promise<AuthenticatedUser>
           position: true,
           branchId: true,
           profilePhoto: true,
+          employmentStatus: true,
         },
       },
     },
