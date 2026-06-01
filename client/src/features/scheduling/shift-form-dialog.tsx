@@ -144,35 +144,33 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Branch
+                  Assigned employee
+                </p>
+                <p className="text-base font-medium text-foreground">
+                  {shift?.assignments.length ? `${shift.assignments[0].employee.firstName} ${shift.assignments[0].employee.lastName}` : "—"}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Current branch
                 </p>
                 <p>{shift?.branch.name}</p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Shift name
+                </p>
+                <p className="text-base font-medium text-foreground">
+                  {shift?.name} {shift ? `(${formatShiftTime(shift.startTime)} - ${formatShiftTime(shift.endTime)})` : ""}
+                </p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                   Date
                 </p>
                 <p>{shift?.date.slice(0, 10)}</p>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Shift name
-              </p>
-              <p className="text-base font-medium text-foreground">{shift?.name}</p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Start time
-                </p>
-                <p>{shift ? formatShiftTime(shift.startTime) : ""}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  End time
-                </p>
-                <p>{shift ? formatShiftTime(shift.endTime) : ""}</p>
               </div>
             </div>
           </div>
@@ -196,19 +194,28 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
         </div>
 
         <div className="grid gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="branchId">Branch</Label>
-            <Select id="branchId" {...register("branchId")}>
-              <option value="">Select branch…</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </Select>
-            {errors.branchId && (
-              <p className="text-xs text-destructive">{errors.branchId.message}</p>
-            )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="branchId">Branch</Label>
+              <Select id="branchId" {...register("branchId")}>
+                <option value="">Select branch…</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </Select>
+              {errors.branchId && (
+                <p className="text-xs text-destructive">{errors.branchId.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input id="date" type="date" {...register("date")} />
+              {errors.date && (
+                <p className="text-xs text-destructive">{errors.date.message}</p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -225,38 +232,33 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
               <p className="text-xs text-destructive">{errors.shiftTypeId.message}</p>
             )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" {...register("date")} />
-            {errors.date && (
-              <p className="text-xs text-destructive">{errors.date.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="startTime">Start time</Label>
-            <Controller
-              name="startTime"
-              control={control}
-              render={({ field }) => (
-                <TimePicker id="startTime" value={field.value} onChange={field.onChange} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="startTime">Start time</Label>
+              <Controller
+                name="startTime"
+                control={control}
+                render={({ field }) => (
+                  <TimePicker id="startTime" value={field.value} onChange={field.onChange} />
+                )}
+              />
+              {errors.startTime && (
+                <p className="text-xs text-destructive">{errors.startTime.message}</p>
               )}
-            />
-            {errors.startTime && (
-              <p className="text-xs text-destructive">{errors.startTime.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="endTime">End time</Label>
-            <Controller
-              name="endTime"
-              control={control}
-              render={({ field }) => (
-                <TimePicker id="endTime" value={field.value} onChange={field.onChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endTime">End time</Label>
+              <Controller
+                name="endTime"
+                control={control}
+                render={({ field }) => (
+                  <TimePicker id="endTime" value={field.value} onChange={field.onChange} />
+                )}
+              />
+              {errors.endTime && (
+                <p className="text-xs text-destructive">{errors.endTime.message}</p>
               )}
-            />
-            {errors.endTime && (
-              <p className="text-xs text-destructive">{errors.endTime.message}</p>
-            )}
+            </div>
           </div>
         </div>
 
