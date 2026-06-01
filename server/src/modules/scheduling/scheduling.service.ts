@@ -175,6 +175,12 @@ export async function updateShift(id: string, input: UpdateShiftInput) {
   if (!existing) throw new AppError(404, "Shift not found");
 
   const data: Prisma.ShiftUpdateInput = {};
+  if (input.branchId !== undefined) {
+    const branch = await prisma.branch.findUnique({ where: { id: input.branchId } });
+    if (!branch) throw new AppError(400, "Branch not found");
+    if (!branch.isActive) throw new AppError(400, "Cannot assign shift to an inactive branch");
+    data.branch = { connect: { id: input.branchId } };
+  }
   if (input.name !== undefined) data.name = input.name;
   if (input.date !== undefined) data.date = dateOnly(input.date);
   if (input.startTime !== undefined) data.startTime = timeToDate(input.startTime);

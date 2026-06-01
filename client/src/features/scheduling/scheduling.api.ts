@@ -48,6 +48,7 @@ export interface ShiftCreateInput {
 }
 
 export interface ShiftUpdateInput {
+  branchId?: string;
   name?: string;
   date?: string;
   startTime?: string;

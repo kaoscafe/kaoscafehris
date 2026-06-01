@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { TimePicker } from "@/components/ui/time-picker";
 import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
+import { listBranches } from "@/features/branches/branches.api";
 import {
   formatShiftTime,
   updateShift,
@@ -24,6 +26,7 @@ import {
 } from "./scheduling.api";
 
 const editSchema = z.object({
+  branchId: z.string().uuid("Select a branch"),
   name: z.string().trim().min(1, "Required").max(60),
   date: z.string().min(1, "Required"),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "HH:MM required"),
@@ -51,6 +54,7 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: {
+      branchId: "",
       name: "",
       date: "",
       startTime: "08:00",
@@ -58,9 +62,17 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
     },
   });
 
+  const branchesQuery = useQuery({
+    queryKey: ["branches", { active: true }],
+    queryFn: () => listBranches({ isActive: true }),
+    enabled: open,
+  });
+  const branches = branchesQuery.data ?? [];
+
   useEffect(() => {
     if (!open || !shift) return;
     reset({
+      branchId: shift.branchId,
       name: shift.name,
       date: shift.date.slice(0, 10),
       startTime: formatShiftTime(shift.startTime),
@@ -72,6 +84,7 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
     mutationFn: async (values: EditValues) => {
       if (!shift) throw new Error("No shift to update");
       return updateShift(shift.id, {
+        branchId: values.branchId,
         name: values.name,
         date: values.date,
         startTime: values.startTime,
@@ -100,7 +113,63 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
         className="space-y-4 pt-4"
         noValidate
       >
+        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Current branch
+              </p>
+              <p>{shift?.branch.name}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Current date
+              </p>
+              <p>{shift?.date.slice(0, 10)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Current time
+              </p>
+              <p>{shift ? `${formatShiftTime(shift.startTime)} – ${formatShiftTime(shift.endTime)}` : ""}</p>
+            </div>
+          </div>
+          {shift?.assignments.length ? (
+            <div className="mt-3 text-sm text-foreground">
+              <p className="font-medium">Assigned employees</p>
+              <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                {shift.assignments.slice(0, 5).map((assignment) => (
+                  <div key={assignment.id}>
+                    {assignment.employee.firstName} {assignment.employee.lastName}
+                    {assignment.assignedBranch ? ` · ${assignment.assignedBranch.name}` : ""}
+                  </div>
+                ))}
+                {shift.assignments.length > 5 && (
+                  <div>+{shift.assignments.length - 5} more</div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 text-xs text-muted-foreground">No employees currently assigned.</div>
+          )}
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="branchId">Branch</Label>
+            <Select id="branchId" {...register("branchId")}>
+              <option value="">Select branch…</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </Select>
+            {errors.branchId && (
+              <p className="text-xs text-destructive">{errors.branchId.message}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Shift name</Label>
             <Input id="name" placeholder="Shift name" {...register("name")} />

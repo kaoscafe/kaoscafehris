@@ -37,6 +37,7 @@ export const createShiftSchema = z
   );
 
 export const updateShiftSchema = z.object({
+  branchId: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(60).optional(),
   date: isoDate.optional(),
   startTime: time.optional(),
