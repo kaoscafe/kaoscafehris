@@ -141,29 +141,39 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
       >
         <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
           <div className="grid gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Branch
+                </p>
+                <p>{shift?.branch.name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Date
+                </p>
+                <p>{shift?.date.slice(0, 10)}</p>
+              </div>
+            </div>
             <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Shift name
               </p>
               <p className="text-base font-medium text-foreground">{shift?.name}</p>
             </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Current branch
-              </p>
-              <p>{shift?.branch.name}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Current date
-              </p>
-              <p>{shift?.date.slice(0, 10)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Current time
-              </p>
-              <p>{shift ? `${formatShiftTime(shift.startTime)} – ${formatShiftTime(shift.endTime)}` : ""}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Start time
+                </p>
+                <p>{shift ? formatShiftTime(shift.startTime) : ""}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  End time
+                </p>
+                <p>{shift ? formatShiftTime(shift.endTime) : ""}</p>
+              </div>
             </div>
           </div>
           {shift?.assignments.length ? (
