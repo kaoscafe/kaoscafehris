@@ -140,26 +140,26 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
         noValidate
       >
         <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
-          <div className="grid gap-3 sm:grid-cols-4">
-            <div className="sm:col-span-2">
+          <div className="grid gap-3">
+            <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Shift name
               </p>
-              <p>{shift?.name}</p>
+              <p className="text-base font-medium text-foreground">{shift?.name}</p>
             </div>
-            <div>
+            <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Current branch
               </p>
               <p>{shift?.branch.name}</p>
             </div>
-            <div>
+            <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Current date
               </p>
               <p>{shift?.date.slice(0, 10)}</p>
             </div>
-            <div>
+            <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Current time
               </p>
@@ -167,7 +167,7 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
             </div>
           </div>
           {shift?.assignments.length ? (
-            <div className="mt-3 text-sm text-foreground">
+            <div className="mt-2 text-sm text-foreground">
               <p className="font-medium">Assigned employee</p>
               <div className="mt-1 space-y-1 text-xs text-muted-foreground">
                 {shift.assignments.slice(0, 5).map((assignment) => (
@@ -185,8 +185,8 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
+        <div className="grid gap-3">
+          <div className="space-y-2">
             <Label htmlFor="branchId">Branch</Label>
             <Select id="branchId" {...register("branchId")}>
               <option value="">Select branch…</option>
