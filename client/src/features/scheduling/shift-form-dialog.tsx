@@ -157,40 +157,21 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
                 <p>{shift?.branch.name}</p>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Shift name
-                </p>
-                <p className="text-base font-medium text-foreground">
-                  {shift?.name} {shift ? `(${formatShiftTime(shift.startTime)} - ${formatShiftTime(shift.endTime)})` : ""}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Date
-                </p>
-                <p>{shift?.date.slice(0, 10)}</p>
-              </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Shift name
+              </p>
+              <p className="text-base font-medium text-foreground">
+                {shift?.name} {shift ? `(${formatShiftTime(shift.startTime)} - ${formatShiftTime(shift.endTime)})` : ""}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Date
+              </p>
+              <p>{shift?.date.slice(0, 10)}</p>
             </div>
           </div>
-          {shift?.assignments.length ? (
-            <div className="mt-2 text-sm text-foreground">
-              <p className="font-medium">Assigned employee</p>
-              <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                {shift.assignments.slice(0, 5).map((assignment) => (
-                  <div key={assignment.id}>
-                    {assignment.employee.firstName} {assignment.employee.lastName}
-                  </div>
-                ))}
-                {shift.assignments.length > 5 && (
-                  <div>+{shift.assignments.length - 5} more</div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-3 text-xs text-muted-foreground">No employees currently assigned.</div>
-          )}
         </div>
 
         <div className="grid gap-3">
