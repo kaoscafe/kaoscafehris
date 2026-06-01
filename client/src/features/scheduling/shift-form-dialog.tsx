@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
 import { listBranches } from "@/features/branches/branches.api";
+import { listShiftTypes } from "./shift-types.api";
 import {
   formatShiftTime,
   updateShift,
@@ -27,6 +28,7 @@ import {
 
 const editSchema = z.object({
   branchId: z.string().uuid("Select a branch"),
+  shiftTypeId: z.string().optional(),
   name: z.string().trim().min(1, "Required").max(60),
   date: z.string().min(1, "Required"),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "HH:MM required"),
@@ -50,11 +52,14 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
     control,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: {
       branchId: "",
+      shiftTypeId: "",
       name: "",
       date: "",
       startTime: "08:00",
@@ -69,16 +74,37 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
   });
   const branches = branchesQuery.data ?? [];
 
+  const shiftTypesQuery = useQuery({
+    queryKey: ["shift-types"],
+    queryFn: () => listShiftTypes(),
+    enabled: open,
+  });
+  const shiftTypes = shiftTypesQuery.data ?? [];
+
+  const selectedShiftTypeId = watch("shiftTypeId");
+  const selectedShiftType = useMemo(
+    () => shiftTypes.find((type) => type.id === selectedShiftTypeId),
+    [shiftTypes, selectedShiftTypeId]
+  );
+
   useEffect(() => {
     if (!open || !shift) return;
     reset({
       branchId: shift.branchId,
+      shiftTypeId: shift.shiftTypeId ?? "",
       name: shift.name,
       date: shift.date.slice(0, 10),
       startTime: formatShiftTime(shift.startTime),
       endTime: formatShiftTime(shift.endTime),
     });
   }, [open, shift, reset]);
+
+  useEffect(() => {
+    if (!open || !selectedShiftType) return;
+    setValue("name", selectedShiftType.name, { shouldDirty: true });
+    setValue("startTime", formatShiftTime(selectedShiftType.startTime), { shouldDirty: true });
+    setValue("endTime", formatShiftTime(selectedShiftType.endTime), { shouldDirty: true });
+  }, [open, selectedShiftType, setValue]);
 
   const mutation = useMutation({
     mutationFn: async (values: EditValues) => {
@@ -114,7 +140,13 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
         noValidate
       >
         <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="sm:col-span-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Shift name
+              </p>
+              <p>{shift?.name}</p>
+            </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Current branch
@@ -136,12 +168,11 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
           </div>
           {shift?.assignments.length ? (
             <div className="mt-3 text-sm text-foreground">
-              <p className="font-medium">Assigned employees</p>
+              <p className="font-medium">Assigned employee</p>
               <div className="mt-1 space-y-1 text-xs text-muted-foreground">
                 {shift.assignments.slice(0, 5).map((assignment) => (
                   <div key={assignment.id}>
                     {assignment.employee.firstName} {assignment.employee.lastName}
-                    {assignment.assignedBranch ? ` · ${assignment.assignedBranch.name}` : ""}
                   </div>
                 ))}
                 {shift.assignments.length > 5 && (
@@ -171,10 +202,17 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name">Shift name</Label>
-            <Input id="name" placeholder="Shift name" {...register("name")} />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
+            <Label htmlFor="shiftTypeId">Shift name</Label>
+            <Select id="shiftTypeId" {...register("shiftTypeId")}> 
+              <option value="">Select shift template…</option>
+              {shiftTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name} ({formatShiftTime(type.startTime)} - {formatShiftTime(type.endTime)})
+                </option>
+              ))}
+            </Select>
+            {errors.shiftTypeId && (
+              <p className="text-xs text-destructive">{errors.shiftTypeId.message}</p>
             )}
           </div>
           <div className="space-y-2">
