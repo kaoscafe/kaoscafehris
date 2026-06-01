@@ -71,8 +71,5 @@ router.get("/attendance", portalController.getAttendance);
 // Employee self-service documents
 router.get("/documents", portalController.listMyDocuments);
 router.post("/documents", documentUpload.single("file"), portalController.uploadMyDocument);
-router.get("/documents/:docId/preview", portalController.previewMyDocument);
-router.get("/documents/:docId/download", portalController.downloadMyDocument);
-router.delete("/documents/:docId", portalController.deleteMyDocument);
 
 export default router;

@@ -7,8 +7,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Building2, Calendar, Camera, CreditCard,
-  Download, Eye, FileText, KeyRound, Loader2, LogOut,
-  Mail, MapPin, Paperclip, Phone, Plus, Trash2, User, X,
+  FileText, KeyRound, Loader2, LogOut,
+  Mail, MapPin, Paperclip, Phone, Plus, User, X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -16,15 +16,11 @@ import { extractErrorMessage } from "@/lib/api";
 import { useLogout } from "@/features/auth/use-login";
 import {
   changePassword,
-  deleteMyDocument,
-  getMyDocumentDownloadUrl,
-  getMyDocumentPreviewUrl,
   getProfile,
   listMyDocuments,
   updateProfile,
   uploadMyDocument,
   uploadProfilePhoto,
-  type MyDocument,
   type UpdateProfileInput,
 } from "./portal.api";
 
@@ -222,10 +218,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function isPreviewable(mimeType: string) {
-  return mimeType.startsWith("image/") || mimeType === "application/pdf";
-}
-
 // ─── Upload Document Sheet ───────────────────────────────────────────────────
 
 function UploadDocumentSheet({ onClose }: { onClose: () => void }) {
@@ -322,77 +314,14 @@ function UploadDocumentSheet({ onClose }: { onClose: () => void }) {
 
 // ─── Document Preview Sheet ──────────────────────────────────────────────────
 
-function DocumentPreviewSheet({ doc, onClose }: { doc: MyDocument; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[110] flex flex-col bg-black">
-      <div className="flex items-center justify-between px-5 pt-14 pb-4 bg-black/80">
-        <div className="min-w-0">
-          <p className="font-semibold text-white truncate">{doc.name}</p>
-          <p className="text-xs text-white/50 truncate">{doc.originalName}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ml-3">
-          <a
-            href={getMyDocumentDownloadUrl(doc.id)}
-            download
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white"
-          >
-            <Download className="h-4 w-4" />
-          </a>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto flex items-center justify-center p-4 min-h-0">
-        {doc.mimeType.startsWith("image/") ? (
-          <img
-            src={getMyDocumentPreviewUrl(doc.id)}
-            alt={doc.name}
-            className="max-w-full max-h-full object-contain rounded"
-          />
-        ) : (
-          <iframe
-            src={getMyDocumentPreviewUrl(doc.id)}
-            title={doc.name}
-            className="w-full rounded bg-white"
-            style={{ height: "80vh" }}
-          />
-        )}
-      </div>
-
-      <div className="px-5 py-3 bg-black/80 text-xs text-white/40 flex gap-4">
-        <span>{formatFileSize(doc.size)}</span>
-        <span>Uploaded {format(new Date(doc.uploadedAt), "MMM d, yyyy")}</span>
-      </div>
-    </div>
-  );
-}
-
 // ─── My Documents Card ───────────────────────────────────────────────────────
 
 function MyDocumentsCard() {
-  const { toast } = useToast();
-  const qc = useQueryClient();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [previewDoc, setPreviewDoc] = useState<MyDocument | null>(null);
 
   const docsQuery = useQuery({
     queryKey: ["my-documents"],
     queryFn: listMyDocuments,
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (docId: string) => deleteMyDocument(docId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-documents"] });
-      toast("Document deleted", "success");
-    },
-    onError: (err) => toast(extractErrorMessage(err), "error"),
   });
 
   const docs = docsQuery.data ?? [];
@@ -438,31 +367,8 @@ function MyDocumentsCard() {
                   <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
                   <p className="text-xs text-gray-400">{formatFileSize(doc.size)} · {format(new Date(doc.uploadedAt), "MMM d, yyyy")}</p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {isPreviewable(doc.mimeType) && (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewDoc(doc)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-200 transition-colors"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  )}
-                  <a
-                    href={getMyDocumentDownloadUrl(doc.id)}
-                    download
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-200 transition-colors"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => deleteMut.mutate(doc.id)}
-                    disabled={deleteMut.isPending}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <div className="text-xs text-gray-400">
+                  Uploaded on {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
                 </div>
               </div>
             ))}
@@ -471,7 +377,6 @@ function MyDocumentsCard() {
       </div>
 
       {uploadOpen && <UploadDocumentSheet onClose={() => setUploadOpen(false)} />}
-      {previewDoc && <DocumentPreviewSheet doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
     </>
   );
 }
