@@ -292,7 +292,7 @@ export async function getAttendanceOvertime(params: {
       employeeId: true,
       employee: {
         select: {
-          id: true, employeeId: true, firstName: true, lastName: true, position: true,
+          id: true, employeeId: true, firstName: true, lastName: true, position: true, employmentStatus: true,
           branch: { select: { id: true, name: true } },
         },
       },

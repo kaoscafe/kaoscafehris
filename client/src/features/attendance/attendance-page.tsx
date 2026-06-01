@@ -295,7 +295,14 @@ const apiStatus = (statusFilter === "LATE" ? "LATE" : statusFilter === "ABSENT" 
                         {`${r.employee.firstName[0]}${r.employee.lastName[0]}`.toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">{r.employee.firstName} {r.employee.lastName}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-800">{r.employee.firstName} {r.employee.lastName}</p>
+                          {r.employee.employmentStatus === "TERMINATED" && (
+                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-red-50 text-red-600 ring-1 ring-inset ring-red-200">
+                              Terminated
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400">{r.employee.employeeId}</p>
                       </div>
                     </div>

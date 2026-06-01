@@ -292,6 +292,16 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput) {
   if (input.password !== undefined) {
     userData.password = await bcrypt.hash(input.password, env.bcryptRounds);
   }
+  
+  // Auto-reactivate user if employment status is changed to an active status
+  if (input.employmentStatus !== undefined && 
+      existing.employmentStatus === "TERMINATED" &&
+      input.employmentStatus !== "TERMINATED" &&
+      input.employmentStatus !== "RESERVED" &&
+      input.isActive === undefined) {
+    userData.isActive = true;
+  }
+  
   const touchUser = Object.keys(userData).length > 0;
 
   const updated = await prisma.$transaction(async (tx) => {

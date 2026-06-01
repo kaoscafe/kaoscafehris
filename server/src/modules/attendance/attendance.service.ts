@@ -20,6 +20,7 @@ const attendanceInclude = {
       firstName: true,
       lastName: true,
       position: true,
+      employmentStatus: true,
     },
   },
   branch: { select: { id: true, name: true } },

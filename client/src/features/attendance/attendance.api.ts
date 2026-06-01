@@ -33,6 +33,7 @@ export interface AttendanceRecord {
     firstName: string;
     lastName: string;
     position: string;
+    employmentStatus: "TRAINEE" | "FULL_TIME" | "PART_TIME" | "RESERVED" | "TERMINATED";
   };
   branch: { id: string; name: string };
   hasShift: boolean;

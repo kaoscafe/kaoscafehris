@@ -102,6 +102,7 @@ const records = await prisma.attendance.findMany({
         employeeId: true,
         firstName: true,
         lastName: true,
+        employmentStatus: true,
       },
     },
     branch: { select: { id: true, name: true } },
