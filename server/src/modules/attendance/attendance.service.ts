@@ -262,6 +262,16 @@ export async function listAttendance(query: ListAttendanceQuery) {
     if (query.startDate) where.date.gte = dateOnly(query.startDate);
     if (query.endDate) where.date.lte = dateOnly(query.endDate);
   }
+  if (query.search) {
+    where.employee = {
+      OR: [
+        { firstName: { contains: query.search, mode: "insensitive" } },
+        { lastName: { contains: query.search, mode: "insensitive" } },
+        { employeeId: { contains: query.search, mode: "insensitive" } },
+        { position: { contains: query.search, mode: "insensitive" } },
+      ],
+    };
+  }
 
   const records = await prisma.attendance.findMany({
     where,

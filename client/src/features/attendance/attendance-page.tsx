@@ -105,10 +105,11 @@ const apiStatus = (statusFilter === "LATE" ? "LATE" : statusFilter === "ABSENT" 
     startDate: dateRangeStart,
     endDate: dateRangeEnd,
     status: apiStatus || undefined,
-  }), [branchId, dateRangeStart, dateRangeEnd, apiStatus]);
+    search: search.trim() || undefined,
+  }), [branchId, dateRangeStart, dateRangeEnd, apiStatus, search]);
 
   const query = useQuery({
-    queryKey: ["attendance", branchId, dateRangeStart, dateRangeEnd, apiStatus],
+    queryKey: ["attendance", branchId, dateRangeStart, dateRangeEnd, apiStatus, search],
     queryFn: () => listAttendance(apiFilters),
   });
 

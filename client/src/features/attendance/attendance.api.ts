@@ -67,6 +67,7 @@ export interface ListAttendanceParams {
   startDate?: string;
   endDate?: string;
   status?: AttendanceStatus;
+  search?: string;
 }
 
 export async function listAttendance(
@@ -79,6 +80,7 @@ export async function listAttendance(
   if (params.startDate) query.startDate = params.startDate;
   if (params.endDate) query.endDate = params.endDate;
   if (params.status) query.status = params.status;
+  if (params.search) query.search = params.search;
   const { data } = await api.get<{ data: AttendanceRecord[] }>("/attendance", {
     params: query,
   });

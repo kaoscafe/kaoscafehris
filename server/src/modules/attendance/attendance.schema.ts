@@ -40,6 +40,7 @@ export const listAttendanceQuerySchema = z
     startDate: isoDate.optional(),
     endDate: isoDate.optional(),
     status: z.enum(["PRESENT", "LATE", "ABSENT", "HALF_DAY", "ON_LEAVE"]).optional(),
+    search: z.string().min(1).optional(),
   })
   .refine(
     (v) => !(v.date && (v.startDate || v.endDate)),
