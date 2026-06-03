@@ -188,7 +188,7 @@ export default function PayrollRunDetailPage() {
   const isCancelled = run.status === "CANCELLED";
   const canReprocess = run.status === "PROCESSING" || run.status === "DRAFT";
   const canFinalize = run.status === "PROCESSING";
-  const canDelete = !isFinalized && !isCancelled;
+  const canDelete = !isCancelled;
   const canEdit = !isFinalized && !isCancelled;
   const canExport = run.payslips.length > 0;
   const filenameBase = `payroll_${run.branch.name.replace(/[^\w-]+/g, "-")}_${run.periodStart.slice(0, 10)}_to_${run.periodEnd.slice(0, 10)}`;
@@ -450,7 +450,11 @@ export default function PayrollRunDetailPage() {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Delete payroll run?"
-        description="This run and all its payslips will be permanently deleted."
+        description={
+          isFinalized
+            ? "This finalized run and all its payslips will be permanently deleted. Deduction payment tracking and consumed one-time earnings will be reversed. This cannot be undone."
+            : "This run and all its payslips will be permanently deleted."
+        }
         confirmLabel="Delete"
         destructive
         loading={cancel.isPending}

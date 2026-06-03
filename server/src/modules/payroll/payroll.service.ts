@@ -228,18 +228,71 @@ export async function createRun(input: CreatePayrollRunInput) {
 }
 
 export async function cancelRun(id: string) {
-  const run = await prisma.payrollRun.findUnique({ where: { id } });
+  const run = await prisma.payrollRun.findUnique({
+    where: { id },
+    include: { payslips: { select: { employeeId: true } } },
+  });
   if (!run) throw new AppError(404, "Payroll run not found");
-  if (run.status === "COMPLETED") {
-    throw new AppError(409, "Completed runs cannot be cancelled");
+  if (run.status === "CANCELLED") {
+    throw new AppError(409, "Run is already cancelled");
   }
-  // Cascade removes payslips + their line items.
-  await prisma.payrollRun.delete({ where: { id } });
+
+  await prisma.$transaction(async (tx) => {
+    if (run.status === "COMPLETED") {
+      const employeeIds = run.payslips.map((p) => p.employeeId);
+
+      // Load the exact deduction amounts frozen in each payslip's line items.
+      // Using these instead of current employeeDeduction.amount so the reversal
+      // matches what was actually applied regardless of later edits to rates.
+      const payslipsWithDeductions = await tx.payslip.findMany({
+        where: { payrollRunId: id },
+        select: {
+          employeeId: true,
+          deductions: { select: { label: true, amount: true } },
+        },
+      });
+
+      // Sum applied amounts per (employeeId, deduction label).
+      const appliedMap = new Map<string, number>();
+      for (const slip of payslipsWithDeductions) {
+        for (const d of slip.deductions) {
+          const key = `${slip.employeeId}::${d.label}`;
+          appliedMap.set(key, round2((appliedMap.get(key) ?? 0) + toNum(d.amount)));
+        }
+      }
+
+      // Un-consume one-time earnings linked to this run.
+      await tx.employeeOneTimeEarning.updateMany({
+        where: { payrollRunId: id },
+        data: { payrollRunId: null },
+      });
+
+      // Reverse paidAmount on balance-tracked deductions using the frozen amounts.
+      const trackedDeductions = await tx.employeeDeduction.findMany({
+        where: { employeeId: { in: employeeIds }, totalBalance: { not: null } },
+        include: { deduction: { select: { name: true } } },
+      });
+      for (const ed of trackedDeductions) {
+        const key = `${ed.employeeId}::${ed.deduction.name}`;
+        const appliedAmount = appliedMap.get(key) ?? 0;
+        if (appliedAmount === 0) continue;
+        const newPaidAmount = round2(Math.max(0, toNum(ed.paidAmount) - appliedAmount));
+        await tx.employeeDeduction.update({
+          where: { id: ed.id },
+          data: { paidAmount: newPaidAmount },
+        });
+      }
+    }
+
+    // Cascade removes payslips + their line items.
+    await tx.payrollRun.delete({ where: { id } });
+  });
+
   await logAudit({
     action: "DELETE",
     tableName: "payroll_runs",
     recordId: id,
-    oldValues: run,
+    oldValues: { status: run.status, id },
   });
 }
 
