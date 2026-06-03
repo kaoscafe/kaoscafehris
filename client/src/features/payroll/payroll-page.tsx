@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, Search } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Search, Trash2 } from "lucide-react";
 import { extractErrorMessage } from "@/lib/api";
 import Pagination from "@/components/ui/pagination";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { listBranches } from "@/features/branches/branches.api";
-import { listRuns, type PayrollRunSummary, type PayrollStatus } from "./payroll.api";
+import { cancelRun, listRuns, type PayrollRunSummary, type PayrollStatus } from "./payroll.api";
 import PayrollRunCreateDialog from "./payroll-run-create-dialog";
 import { COMPANY_TZ } from "@/lib/timezone";
 
@@ -52,8 +54,25 @@ export default function PayrollPage() {
   const [branchId, setBranchId] = useState("");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; status: PayrollStatus } | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => cancelRun(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payroll-runs"] });
+      toast("Payroll run deleted", "success");
+      setDeleteTarget(null);
+    },
+    onError: (err) => {
+      toast(extractErrorMessage(err), "error");
+      setDeleteTarget(null);
+    },
+  });
 
   const branchesQuery = useQuery({
     queryKey: ["branches", {}],
@@ -177,12 +196,23 @@ export default function PayrollPage() {
                   <StatusBadge status={r.status} />
                 </td>
                 <td className="px-6 py-4">
-                  <Link
-                    to={`/payroll/${r.id}`}
-                    className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
-                  >
-                    View
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/payroll/${r.id}`}
+                      className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
+                    >
+                      View
+                    </Link>
+                    {r.status !== "CANCELLED" && (
+                      <button
+                        onClick={() => setDeleteTarget({ id: r.id, status: r.status })}
+                        className="inline-flex items-center rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-500 transition-colors hover:border-red-400 hover:bg-red-50"
+                        title="Delete run"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -193,6 +223,21 @@ export default function PayrollPage() {
       </div>
 
       <PayrollRunCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete payroll run?"
+        description={
+          deleteTarget?.status === "COMPLETED"
+            ? "This finalized run and all its payslips will be permanently deleted. Deduction payment tracking and consumed one-time earnings will be reversed. This cannot be undone."
+            : "This run and all its payslips will be permanently deleted."
+        }
+        confirmLabel="Delete"
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+      />
     </div>
   );
 }
