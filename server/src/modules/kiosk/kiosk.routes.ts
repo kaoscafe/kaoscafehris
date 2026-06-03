@@ -8,7 +8,7 @@ import multer from "multer";
 import { z } from "zod";
 import prisma from "../../config/db.js";
 import { AppError } from "../../middleware/error-handler.js";
-import { getSetting } from "../../lib/settings-cache.js";
+import { getSetting, getDayCutoffHour } from "../../lib/settings-cache.js";
 import { COMPANY_TZ } from "../../lib/timezone.js";
 import * as attendanceService from "../attendance/attendance.service.js";
 import { localCalendarDateOf, getScheduledTimes } from "../attendance/attendance.service.js";
@@ -113,7 +113,8 @@ router.get("/status/:employeeId", async (req, res, next) => {
     }
 
     const now = new Date();
-    const dateKey = await localCalendarDateOf(now);
+    const dayCutoffHour = await getDayCutoffHour();
+    const dateKey = await localCalendarDateOf(now, dayCutoffHour);
 
     // Today's attendance — open record takes priority so the Time Out button
     // shows correctly. Multiple records per day are now allowed (multi-shift).

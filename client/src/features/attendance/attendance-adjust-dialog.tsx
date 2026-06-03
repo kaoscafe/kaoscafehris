@@ -26,6 +26,7 @@ import {
   type AttendanceRecord,
 } from "./attendance.api";
 import { setShiftOvertimeApproval } from "@/features/overtime/overtime.api";
+import { listSettings } from "@/features/settings/settings.api";
 import { COMPANY_TZ, isoToDateStr, isoToTimeStr, toIso, nextDayLocalIso } from "@/lib/timezone";
 
 const schema = z.object({
@@ -149,6 +150,16 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
     enabled: open && !!record,
   });
 
+  const settingsQuery = useQuery({
+    queryKey: ["settings", "attendance"],
+    queryFn: () => listSettings("attendance"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const lateThresholdMinutes = Number(
+    settingsQuery.data?.find((s) => s.key === "attendance.late_threshold")?.value ?? 0
+  );
+
   const clockInTime = useWatch({ control, name: "clockInTime" });
   const clockOutTime = useWatch({ control, name: "clockOutTime" });
 
@@ -163,7 +174,8 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
 
   if (ciMins < 0 || coMins < 0) return null;
 
-  const lateMins = Math.max(0, ciMins - startMins);
+  const rawLateMins = Math.max(0, ciMins - startMins);
+  const lateMins = rawLateMins > lateThresholdMinutes ? rawLateMins : 0;
 
   let effectiveCo = coMins;
   let effectiveEnd = endMins;
@@ -180,7 +192,7 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
 
   const otMins = Math.max(0, effectiveCo - effectiveEnd);
   return { lateMins, otMins };
-}, [shiftQuery.data, clockInTime, clockOutTime]);
+}, [shiftQuery.data, clockInTime, clockOutTime, lateThresholdMinutes]);
 
   const shift = shiftQuery.data;
 

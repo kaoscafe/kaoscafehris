@@ -1,9 +1,9 @@
 import cron from "node-cron";
 import prisma from "../config/db.js";
 import { sendMail } from "./email.js";
-import { getSetting } from "./settings-cache.js";
+import { getSetting, getDayCutoffHour } from "./settings-cache.js";
 import { COMPANY_TZ } from "./timezone.js";
-import { getScheduledTimes } from "../modules/attendance/attendance.service.js";
+import { getScheduledTimes, localCalendarDateOf } from "../modules/attendance/attendance.service.js";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -354,11 +354,11 @@ export async function checkEmployeeMilestones() {
 export async function checkAbsentEmployees() {
   try {
     const tz = COMPANY_TZ;
-    const today = getDateParts(new Date(), tz);
-    const todayUTC = new Date(Date.UTC(today.year, today.month - 1, today.day));
+    const now = new Date();
+    const dayCutoffHour = await getDayCutoffHour();
+    const todayUTC = await localCalendarDateOf(now, dayCutoffHour);
     const yesterdayUTC = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
     const thresholdHours = await getSetting<number>("attendance.absent_if_no_clockin", 4);
-    const now = new Date();
 
     const allShifts = await prisma.shift.findMany({
       where: {
@@ -517,10 +517,10 @@ function lateClockInHtml(firstName: string, shiftName: string, shiftStart: strin
 export async function checkLateClockIns() {
   try {
     const tz = COMPANY_TZ;
-    const today = getDateParts(new Date(), tz);
-    const todayUTC = new Date(Date.UTC(today.year, today.month - 1, today.day));
-    const yesterdayUTC = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
     const now = new Date();
+    const dayCutoffHour = await getDayCutoffHour();
+    const todayUTC = await localCalendarDateOf(now, dayCutoffHour);
+    const yesterdayUTC = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
     const REMINDER_MINUTES = 30;
 
     const allShifts = await prisma.shift.findMany({

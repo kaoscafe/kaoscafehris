@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: ReadonlyArray<{
   { key: "company.tin", value: "", group: "company" },
   // Attendance
   { key: "attendance.late_threshold", value: 0, group: "attendance" },
+  { key: "attendance.day_cutoff_hour", value: "00:00", group: "attendance" },
   { key: "attendance.overtime_threshold", value: 8, group: "attendance" },
   { key: "attendance.require_selfie", value: "Yes", group: "attendance" },
   { key: "attendance.absent_if_no_clockin", value: 4, group: "attendance" },

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "../../config/db.js";
 import { AppError } from "../../middleware/error-handler.js";
-import { getSetting } from "../../lib/settings-cache.js";
+import { getSetting, getDayCutoffHour } from "../../lib/settings-cache.js";
 import { COMPANY_TZ, localDateKey, localMidnightUtc } from "../../lib/timezone.js";
 import type {
   ClockInInput,
@@ -32,18 +32,32 @@ function dateOnly(isoDate: string): Date {
 }
 
 /**
- * Return the local calendar date of `instant` in the company timezone, with
- * NO split-time rollback. Used for manual attendance creation where the admin
- * has explicitly chosen the intended date.
+ * Return the effective attendance date of `instant` in the company timezone.
+ *
+ * When `dayCutoffHour` > 0 (e.g. 7 for 7 AM), any local time that falls
+ * before the cutoff is attributed to the *previous* calendar day. This lets
+ * the system treat, say, 2 AM as still belonging to the previous night's shift
+ * rather than the new calendar day.
+ *
+ * Pass `dayCutoffHour = 0` (the default) to use midnight as the boundary —
+ * this is the right choice for admin-entered dates where the date is explicit.
  */
-export async function localCalendarDateOf(instant: Date): Promise<Date> {
+export async function localCalendarDateOf(instant: Date, dayCutoffHour = 0): Promise<Date> {
   const tz = COMPANY_TZ;
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hour12: false,
   }).formatToParts(instant);
   const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
-  return new Date(Date.UTC(get("year"), get("month") - 1, get("day")));
+  const year = get("year");
+  const month = get("month");
+  const day = get("day");
+  const hour = get("hour");
+  if (dayCutoffHour > 0 && hour < dayCutoffHour) {
+    return new Date(Date.UTC(year, month - 1, day - 1));
+  }
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function diffMinutes(from: Date, to: Date): number {
@@ -117,8 +131,9 @@ async function resolveAttendanceDateAndShift(
   employeeId: string,
   clockInAt: Date,
   tz: string,
+  dayCutoffHour = 0,
 ): Promise<{ date: Date; shift: Awaited<ReturnType<typeof findScheduledShift>> }> {
-  const naiveDate = await localCalendarDateOf(clockInAt);
+  const naiveDate = await localCalendarDateOf(clockInAt, dayCutoffHour);
   const naiveShift = await findScheduledShift(employeeId, naiveDate, clockInAt, tz);
 
   // Compute the previous calendar date (UTC-based is fine since date-only doesn't have DST ambiguity).
@@ -248,7 +263,43 @@ export function getScheduledTimes(
 export async function deleteAttendance(id: string) {
   const record = await prisma.attendance.findUnique({ where: { id } });
   if (!record) throw new AppError(404, "Attendance record not found");
-  await prisma.attendance.delete({ where: { id } });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.attendance.delete({ where: { id } });
+
+    // manualCreate creates a Shift + ShiftAssignment as a side effect.
+    // If the attendance record is deleted and no other attendance exists for
+    // this employee on that date, clean up the auto-created shift so the
+    // auto-absent scheduler doesn't incorrectly fire for it.
+    if (record.source === "MANUAL") {
+      const remainingAttendance = await tx.attendance.count({
+        where: { employeeId: record.employeeId, date: record.date },
+      });
+      if (remainingAttendance === 0) {
+        // Find shifts on that date this employee is assigned to.
+        const assignments = await tx.shiftAssignment.findMany({
+          where: { employeeId: record.employeeId, shift: { date: record.date } },
+          select: {
+            id: true,
+            shiftId: true,
+            shift: { select: { _count: { select: { assignments: true } } } },
+          },
+        });
+
+        for (const a of assignments) {
+          if (a.shift._count.assignments === 1) {
+            // Only this employee is on the shift — it was auto-created by
+            // manualCreate. Delete the shift; ShiftAssignment cascades.
+            await tx.shift.delete({ where: { id: a.shiftId } });
+          } else {
+            // Shared shift from the scheduling module — only remove this
+            // employee's assignment, leave the shift intact for others.
+            await tx.shiftAssignment.delete({ where: { id: a.id } });
+          }
+        }
+      }
+    }
+  });
 }
 
 export async function listAttendance(query: ListAttendanceQuery) {
@@ -348,13 +399,16 @@ export async function clockIn(input: ClockInInput, options?: { skipOpenRecordGua
   }
 
   let clockInAt = input.clockIn ? new Date(input.clockIn) : new Date();
-  // Resolve the correct attendance date and matching shift. For graveyard shifts
-  // (e.g. 11 PM → 7 AM), a clock-in after midnight will be attributed to the
-  // previous date where the shift is actually scheduled.
+  const dayCutoffHour = await getDayCutoffHour();
+  // Resolve the correct attendance date and matching shift. The day cutoff hour
+  // setting controls when the "new day" starts (e.g. 7 = 7 AM). Times before
+  // the cutoff are attributed to the previous calendar date so overnight shift
+  // clock-ins are always placed on the shift's start date.
   const { date: effectiveDateKey, shift } = await resolveAttendanceDateAndShift(
     input.employeeId,
     clockInAt,
     COMPANY_TZ,
+    dayCutoffHour,
   );
 
   // Idempotency for offline sync: if a localRecordId matches an existing row,
@@ -580,7 +634,8 @@ export async function manualAdjust(id: string, input: ManualAdjustInput) {
   let shift: Awaited<ReturnType<typeof findScheduledShift>> = null;
   const tz = COMPANY_TZ;
   if (input.clockIn !== undefined) {
-    const resolved = await resolveAttendanceDateAndShift(existing.employeeId, nextClockIn, tz);
+    const dayCutoffHour = await getDayCutoffHour();
+    const resolved = await resolveAttendanceDateAndShift(existing.employeeId, nextClockIn, tz, dayCutoffHour);
     nextDate = resolved.date;
     shift = resolved.shift;
     if (nextDate.getTime() !== existing.date.getTime()) {
@@ -663,11 +718,13 @@ export async function manualCreate(input: ManualCreateInput) {
   const tz = COMPANY_TZ;
   const graceMinutes = await getSetting<number>("attendance.late_threshold", 0);
 
-  // Resolve the correct date from the employee's shift assignment so graveyard
-  // shifts are attributed to the scheduled date, not the calendar date.
-  const { date: dateKey, shift: assignedShift } = await resolveAttendanceDateAndShift(
-    input.employeeId, clockInAt, tz,
-  );
+  // Use the naive calendar date of the admin-chosen clockIn directly.
+  // resolveAttendanceDateAndShift is designed for kiosk clock-ins where the
+  // date is ambiguous (e.g. 2 AM could belong to the previous overnight shift).
+  // For manual entry the admin has explicitly selected the date, so we must
+  // not silently move the record to the previous day.
+  const dateKey = await localCalendarDateOf(clockInAt);
+  const assignedShift = await findScheduledShift(input.employeeId, dateKey, clockInAt, tz);
 
   // Block if there is already an open (no clock-out) record for the resolved date.
   const openTodayRecord = await prisma.attendance.findFirst({

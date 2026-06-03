@@ -56,7 +56,7 @@ function StatusBadge({ status, hasClockOut }: { status: AttendanceStatus; hasClo
     case "LATE": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#fdf0e0", color: AMBER }}>Late</span>;
     case "ABSENT": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#fce9e9", color: BRAND }}>Absent</span>;
     case "ON_LEAVE": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#f3e8ff", color: PURPLE }}>On Leave</span>;
-    case "HALF_DAY": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#f3e8ff", color: PURPLE }}>On Leave</span>;
+    case "HALF_DAY": return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#f3e8ff", color: PURPLE }}>Half-day</span>;
     default: return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">{status}</span>;
   }
 }
@@ -369,23 +369,46 @@ const apiStatus = (statusFilter === "LATE" ? "LATE" : statusFilter === "ABSENT" 
             <span style={{ fontSize: "12px", color: "#aaa" }}>
               Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, records.length)} of {records.length} records
             </span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  style={{
-                    width: 28, height: 28, borderRadius: 6,
-                    border: p === page ? "none" : "1px solid #eee",
-                    background: p === page ? BRAND : "#fff",
-                    color: p === page ? "#fff" : "#666",
-                    fontSize: 12, cursor: "pointer",
-                    fontWeight: p === page ? 700 : 400,
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #eee", background: "#fff", color: "#666", fontSize: 12, cursor: page === 1 ? "default" : "pointer", opacity: page === 1 ? 0.4 : 1 }}
+              >‹</button>
+              {(() => {
+                const pages: (number | "…")[] = [];
+                const delta = 2;
+                const left = Math.max(2, page - delta);
+                const right = Math.min(totalPages - 1, page + delta);
+                pages.push(1);
+                if (left > 2) pages.push("…");
+                for (let i = left; i <= right; i++) pages.push(i);
+                if (right < totalPages - 1) pages.push("…");
+                if (totalPages > 1) pages.push(totalPages);
+                return pages.map((p, i) =>
+                  p === "…"
+                    ? <span key={`ellipsis-${i}`} style={{ width: 28, textAlign: "center", fontSize: 12, color: "#aaa" }}>…</span>
+                    : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p as number)}
+                        style={{
+                          width: 28, height: 28, borderRadius: 6,
+                          border: p === page ? "none" : "1px solid #eee",
+                          background: p === page ? BRAND : "#fff",
+                          color: p === page ? "#fff" : "#666",
+                          fontSize: 12, cursor: "pointer",
+                          fontWeight: p === page ? 700 : 400,
+                        }}
+                      >{p}</button>
+                    )
+                );
+              })()}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #eee", background: "#fff", color: "#666", fontSize: 12, cursor: page === totalPages ? "default" : "pointer", opacity: page === totalPages ? 0.4 : 1 }}
+              >›</button>
             </div>
           </div>
         )}

@@ -44,6 +44,7 @@ const FIELD_CONFIG: Record<string, FieldConfig> = {
     options: ["Bi-Monthly", "Monthly", "Weekly", "Semi-Weekly"],
   },
   "attendance.late_threshold": { label: "Late Threshold (MINS)", type: "number" },
+  "attendance.day_cutoff_hour": { label: "Timesheet Start Time", type: "timepicker" },
   "attendance.require_selfie": {
     label: "Require Selfie",
     type: "select",
