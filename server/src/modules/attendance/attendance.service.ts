@@ -118,6 +118,12 @@ async function findScheduledShift(
   return best;
 }
 
+// How early (before scheduled start) a clock-in is still attributed to the
+// upcoming shift on the real calendar date rather than the previous day.
+// Needed when the day cutoff (e.g. 7 AM) coincides with a shift start: a
+// 6:45 AM clock-in for a 7 AM shift must not be pushed back to yesterday.
+const EARLY_CLOCK_IN_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
 /**
  * Resolve the correct attendance date and matching shift for a clock-in.
  *
@@ -126,6 +132,11 @@ async function findScheduledShift(
  * computed window contains the clock-in. A strict < on scheduledEnd ensures that
  * a clock-in at exactly the boundary (e.g. 7:00 AM when overnight ends at 7:00)
  * goes to the current day's shift, not the graveyard.
+ *
+ * Additionally, when the clock-in falls before the day cutoff (so naiveDate is
+ * yesterday), checks the real calendar date for a shift whose start is within
+ * EARLY_CLOCK_IN_WINDOW_MS. This prevents early arrivals (e.g. 6:45 AM for a
+ * 7 AM shift) from being misattributed to the previous day.
  */
 async function resolveAttendanceDateAndShift(
   employeeId: string,
@@ -190,6 +201,33 @@ async function resolveAttendanceDateAndShift(
     naiveDiff = Math.abs(clockInAt.getTime() - scheduledStart.getTime());
   }
 
+  // Early arrival check: if the cutoff pushed naiveDate to yesterday, also
+  // look at the real calendar date for a shift starting within the early window.
+  // This lets a 6:45 AM clock-in correctly belong to today's 7 AM shift.
+  let earlyDate: Date | null = null;
+  let earlyShift: typeof naiveShift = null;
+  let earlyDiff = Infinity;
+
+  if (dayCutoffHour > 0) {
+    const realDate = await localCalendarDateOf(clockInAt, 0); // no cutoff = actual calendar date
+    if (realDate.getTime() !== naiveDate.getTime()) {
+      const realShift = await findScheduledShift(employeeId, realDate, clockInAt, tz);
+      if (realShift) {
+        const { scheduledStart } = getScheduledTimes(realDate, realShift, tz);
+        const msBeforeStart = scheduledStart.getTime() - clockInAt.getTime();
+        if (msBeforeStart >= 0 && msBeforeStart <= EARLY_CLOCK_IN_WINDOW_MS) {
+          earlyDate = realDate;
+          earlyShift = realShift;
+          earlyDiff = msBeforeStart;
+        }
+      }
+    }
+  }
+
+  // Pick the best candidate: early arrival for today, overnight from prev date, or naive date.
+  if (earlyShift && earlyDiff <= naiveDiff && earlyDiff <= bestPrevDiff) {
+    return { date: earlyDate!, shift: earlyShift };
+  }
   if (bestPrevShift && bestPrevDiff < naiveDiff) {
     return { date: prevDate, shift: bestPrevShift };
   }
