@@ -114,7 +114,27 @@ router.get("/status/:employeeId", async (req, res, next) => {
 
     const now = new Date();
     const dayCutoffHour = await getDayCutoffHour();
-    const dateKey = await localCalendarDateOf(now, dayCutoffHour);
+    let dateKey = await localCalendarDateOf(now, dayCutoffHour);
+
+    // Early arrival: before the day cutoff (e.g. 6:45 AM with a 7 AM cutoff),
+    // localCalendarDateOf returns yesterday. If the employee has an upcoming
+    // shift on the real calendar date starting within 1 hour, switch to the
+    // real date so the kiosk shows "Not Yet Timed In" instead of yesterday's
+    // "Shift complete" and the Time In button becomes available.
+    const realDate = await localCalendarDateOf(now, 0);
+    if (realDate.getTime() !== dateKey.getTime()) {
+      const upcomingAssignment = await prisma.shiftAssignment.findFirst({
+        where: { employeeId: emp.id, shift: { date: realDate } },
+        include: { shift: true },
+      });
+      if (upcomingAssignment) {
+        const { scheduledStart } = getScheduledTimes(realDate, upcomingAssignment.shift, COMPANY_TZ);
+        const msBeforeStart = scheduledStart.getTime() - now.getTime();
+        if (msBeforeStart >= 0 && msBeforeStart <= 60 * 60 * 1000) {
+          dateKey = realDate;
+        }
+      }
+    }
 
     // Today's attendance — open record takes priority so the Time Out button
     // shows correctly. Multiple records per day are now allowed (multi-shift).
