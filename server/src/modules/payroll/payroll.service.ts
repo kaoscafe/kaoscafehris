@@ -1274,7 +1274,7 @@ export async function processRun(id: string) {
       // in settings — no defaults are assumed.
       const totalLateMinutes = lateMinutesMap.get(emp.id) ?? 0;
       const deductibleMinutes = Math.max(0, totalLateMinutes - lateThresholdMinutes);
-      if (lateDeductionPerMinute > 0 && deductibleMinutes > 0) {
+      if (lateDeductionPerMinute > 0 && deductibleMinutes > 0 && emp.payType !== "MONTHLY_FIXED") {
         deductionRows.push({
           type: "LATE",
           label: `Late deduction (${deductibleMinutes} min × ₱${lateDeductionPerMinute}/min)`,

@@ -11,6 +11,7 @@ const amount = z
 
 export const deductionTypeEnum = z.enum([
   "LATE",
+  "UNPAID_LEAVE",
   "CASH_ADVANCE",
   "SALARY_LOAN",
   "SSS",
@@ -26,6 +27,7 @@ export const earningTypeEnum = z.enum([
   "ALLOWANCE",
   "HOLIDAY_PAY",
   "NIGHT_DIFFERENTIAL",
+  "PAID_LEAVE",
   "OTHER",
 ]);
 
