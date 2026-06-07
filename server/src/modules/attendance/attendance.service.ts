@@ -538,14 +538,16 @@ export async function clockIn(input: ClockInInput, options?: { skipOpenRecordGua
 
     // Auto-correct: when clockIn is before the shift start, the shift is
     // overnight, and clockIn is in the morning (before noon), the clockIn is
-    // really the next morning. Skip evening hours to avoid penalizing early
-    // clock-ins (e.g. 10pm for an 11pm shift).
+    // really the next morning (late clock-in for a graveyard shift).
+    // Skip the correction when the gap is within EARLY_CLOCK_IN_WINDOW_MS —
+    // that's an intentional early arrival, not a next-morning misattribution.
     let correctedClockIn = clockInAt;
     if (clockInAt < scheduledStart) {
+      const msBeforeStart = scheduledStart.getTime() - clockInAt.getTime();
       const startUtc = shift.startTime.getUTCHours() * 60 + shift.startTime.getUTCMinutes();
       const endUtc = shift.endTime.getUTCHours() * 60 + shift.endTime.getUTCMinutes();
       const localHour = new Date(clockInAt.toLocaleString("en-US", { timeZone: tz })).getHours();
-      if (endUtc < startUtc && localHour < 12) {
+      if (endUtc < startUtc && localHour < 12 && msBeforeStart > EARLY_CLOCK_IN_WINDOW_MS) {
         correctedClockIn = new Date(clockInAt.getTime() + 24 * 60 * 60 * 1000);
       }
     }

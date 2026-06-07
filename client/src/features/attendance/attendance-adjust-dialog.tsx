@@ -27,7 +27,7 @@ import {
 } from "./attendance.api";
 import { setShiftOvertimeApproval } from "@/features/overtime/overtime.api";
 import { listSettings } from "@/features/settings/settings.api";
-import { COMPANY_TZ, isoToDateStr, isoToTimeStr, toIso, nextDayLocalIso } from "@/lib/timezone";
+import { COMPANY_TZ, isoToTimeStr, toIso, nextDayLocalIso } from "@/lib/timezone";
 
 const schema = z.object({
   date: z.string().min(1, "Required"),
@@ -107,7 +107,7 @@ export default function AttendanceAdjustDialog({ open, onOpenChange, record }: P
   );
 
   reset({
-    date: isoToDateStr(record.clockIn, tz),
+    date: record.date.slice(0, 10),
     clockInTime: isoToTimeStr(record.clockIn, tz),
     clockOutTime: isoToTimeStr(record.clockOut, tz),
     status:
