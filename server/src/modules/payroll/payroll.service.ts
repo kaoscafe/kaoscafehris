@@ -1031,6 +1031,30 @@ export async function processRun(id: string) {
     }
   }
 
+  // Approved UNPAID leave days per employee within the payroll period.
+  // Used to deduct from MONTHLY_FIXED employees (hourly employees are already
+  // attendance-based, so missing days naturally result in no pay without a deduction).
+  const unpaidLeaveRows = await prisma.leaveRequest.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      leaveType: "UNPAID",
+      status: "APPROVED",
+      startDate: { lte: run.periodEnd },
+      endDate: { gte: run.periodStart },
+    },
+    select: { employeeId: true, startDate: true, endDate: true, totalDays: true },
+  });
+
+  const unpaidDaysMap = new Map<string, number>();
+  for (const leave of unpaidLeaveRows) {
+    const clampedStart = leave.startDate < run.periodStart ? run.periodStart : leave.startDate;
+    const clampedEnd   = leave.endDate   > run.periodEnd   ? run.periodEnd   : leave.endDate;
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const clampedDays = Math.round((clampedEnd.getTime() - clampedStart.getTime()) / msPerDay) + 1;
+    const days = Math.min(toNum(leave.totalDays), clampedDays);
+    unpaidDaysMap.set(leave.employeeId, round2((unpaidDaysMap.get(leave.employeeId) ?? 0) + days));
+  }
+
   // Approved paid leave days per employee within the payroll period (non-UNPAID types).
   // Used to credit HOURLY employees who would otherwise lose pay for approved leave days.
   const paidLeaveRows = await prisma.leaveRequest.findMany({
@@ -1258,6 +1282,21 @@ export async function processRun(id: string) {
         });
       }
 
+      // Unpaid leave deduction applies only to MONTHLY_FIXED employees.
+      // HOURLY employees are already no-work-no-pay — missing attendance days
+      // simply aren't paid, so no separate deduction is needed.
+      const unpaidDays = unpaidDaysMap.get(emp.id) ?? 0;
+      if (unpaidDays > 0 && emp.payType !== "HOURLY") {
+        const dailyRate = round2(toNum(emp.basicSalary) / 26);
+        const unpaidLeaveAmount = round2(dailyRate * unpaidDays);
+        if (unpaidLeaveAmount > 0) {
+          deductionRows.push({
+            type: "UNPAID_LEAVE",
+            label: `Unpaid leave (${unpaidDays} day${unpaidDays !== 1 ? "s" : ""} × ₱${dailyRate}/day)`,
+            amount: unpaidLeaveAmount,
+          });
+        }
+      }
 
       // Fold into denormalized columns.
       const sssContribution        = sumByDeductionType(deductionRows, "SSS");
