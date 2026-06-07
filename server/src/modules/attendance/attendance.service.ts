@@ -122,7 +122,7 @@ async function findScheduledShift(
 // upcoming shift on the real calendar date rather than the previous day.
 // Needed when the day cutoff (e.g. 7 AM) coincides with a shift start: a
 // 6:45 AM clock-in for a 7 AM shift must not be pushed back to yesterday.
-const EARLY_CLOCK_IN_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+export const EARLY_CLOCK_IN_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Resolve the correct attendance date and matching shift for a clock-in.
@@ -804,14 +804,16 @@ export async function manualCreate(input: ManualCreateInput) {
 
   // Auto-correct: when clockIn is before the shift start, the shift is
   // overnight, and clockIn is in the morning (before noon), the clockIn is
-  // really the next morning. Skip evening hours to avoid penalizing early
-  // clock-ins (e.g. 10pm for an 11pm shift).
+  // really the next morning. Skip the correction when within the early
+  // window — that is an intentional early arrival, not a next-morning
+  // misattribution (same guard as in clockIn).
   let correctedClockIn = clockInAt;
   if (clockInAt < scheduledStart) {
+    const msBeforeStart = scheduledStart.getTime() - clockInAt.getTime();
     const startUtc = shiftType.startTime.getUTCHours() * 60 + shiftType.startTime.getUTCMinutes();
     const endUtc = shiftType.endTime.getUTCHours() * 60 + shiftType.endTime.getUTCMinutes();
     const localHour = new Date(clockInAt.toLocaleString("en-US", { timeZone: tz })).getHours();
-    if (endUtc < startUtc && localHour < 12) {
+    if (endUtc < startUtc && localHour < 12 && msBeforeStart > EARLY_CLOCK_IN_WINDOW_MS) {
       correctedClockIn = new Date(clockInAt.getTime() + 24 * 60 * 60 * 1000);
     }
   }

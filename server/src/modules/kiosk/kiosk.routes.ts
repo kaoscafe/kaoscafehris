@@ -11,7 +11,7 @@ import { AppError } from "../../middleware/error-handler.js";
 import { getSetting, getDayCutoffHour } from "../../lib/settings-cache.js";
 import { COMPANY_TZ } from "../../lib/timezone.js";
 import * as attendanceService from "../attendance/attendance.service.js";
-import { localCalendarDateOf, getScheduledTimes } from "../attendance/attendance.service.js";
+import { localCalendarDateOf, getScheduledTimes, EARLY_CLOCK_IN_WINDOW_MS } from "../attendance/attendance.service.js";
 
 const uploadsBase = process.env.UPLOADS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "uploads");
 const selfieDir = path.join(uploadsBase, "selfies");
@@ -130,7 +130,7 @@ router.get("/status/:employeeId", async (req, res, next) => {
       if (upcomingAssignment) {
         const { scheduledStart } = getScheduledTimes(realDate, upcomingAssignment.shift, COMPANY_TZ);
         const msBeforeStart = scheduledStart.getTime() - now.getTime();
-        if (msBeforeStart >= 0 && msBeforeStart <= 60 * 60 * 1000) {
+        if (msBeforeStart >= 0 && msBeforeStart <= EARLY_CLOCK_IN_WINDOW_MS) {
           dateKey = realDate;
         }
       }
