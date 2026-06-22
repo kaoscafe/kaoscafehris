@@ -84,7 +84,7 @@ export default function AppRoutes() {
         <Route
           path="/employees"
           element={
-            <ProtectedRoute allowed={["ADMIN"]}>
+            <ProtectedRoute allowed={["ADMIN", "MANAGER"]}>
               <EmployeesPage />
             </ProtectedRoute>
           }

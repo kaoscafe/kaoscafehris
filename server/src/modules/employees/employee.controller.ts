@@ -107,6 +107,11 @@ export async function addDeduction(req: Request<{ id: string }>, res: Response, 
 
 export async function updateDeduction(req: Request<EdParams>, res: Response, next: NextFunction) {
   try {
+    // Managers may edit amount / total payable, but only admins may reset the paid amount.
+    if (req.body?.paidAmount !== undefined && req.user?.role !== "ADMIN") {
+      res.status(403).json({ message: "Insufficient permissions" });
+      return;
+    }
     const data = await edService.updateEmployeeDeduction(req.params.id, req.params.edId, req.body);
     res.json({ data });
   } catch (err) {

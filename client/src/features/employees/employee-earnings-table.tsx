@@ -4,6 +4,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/features/auth/auth.store";
 import {
   listEmployeeEarnings,
   addEmployeeEarning,
@@ -32,6 +33,8 @@ interface Props {
 
 export default function EmployeeEarningsTable({ employeeId, pendingEarnings, onPendingChange }: Props) {
   const isOnline = !!employeeId;
+  // Recurring earnings are admin-managed; managers have read-only access.
+  const canManage = useAuthStore((s) => s.user?.role) === "ADMIN";
 
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -102,7 +105,7 @@ export default function EmployeeEarningsTable({ employeeId, pendingEarnings, onP
         <h3 className="text-xs font-bold uppercase tracking-widest" style={{ color: BRAND }}>
           Recurring Earnings
         </h3>
-        {!showAddRow && (
+        {canManage && !showAddRow && (
           <button
             type="button"
             onClick={() => setShowAddRow(true)}
@@ -146,13 +149,15 @@ export default function EmployeeEarningsTable({ employeeId, pendingEarnings, onP
                   <td className="px-3 py-2.5 font-medium text-gray-800">{e.label}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{fmt(e.amount)}</td>
                   <td className="px-2 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => onPendingChange?.(offlineRows.filter((_, idx) => idx !== i))}
-                      className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => onPendingChange?.(offlineRows.filter((_, idx) => idx !== i))}
+                        className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -166,14 +171,16 @@ export default function EmployeeEarningsTable({ employeeId, pendingEarnings, onP
                   <td className="px-3 py-2.5 font-medium text-gray-800">{ee.label}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{fmt(Number(ee.amount))}</td>
                   <td className="px-2 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => removeMutation.mutate(ee.id)}
-                      disabled={removeMutation.isPending}
-                      className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => removeMutation.mutate(ee.id)}
+                        disabled={removeMutation.isPending}
+                        className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

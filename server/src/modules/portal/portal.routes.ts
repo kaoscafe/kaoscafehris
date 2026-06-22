@@ -68,8 +68,9 @@ router.put("/password", validate(changePasswordSchema), portalController.changeP
 router.get("/schedule", portalController.getSchedule);
 router.get("/attendance", portalController.getAttendance);
 
-// Employee self-service documents
-router.get("/documents", portalController.listMyDocuments);
+// Employee self-service documents — upload only.
+// Viewing/listing and deleting are intentionally not exposed: uploaded
+// documents are managed by HR/Admin via the employees module.
 router.post("/documents", documentUpload.single("file"), portalController.uploadMyDocument);
 
 export default router;

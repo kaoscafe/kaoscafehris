@@ -235,27 +235,10 @@ export interface MyDocument {
   uploadedAt: string;
 }
 
-export async function listMyDocuments(): Promise<MyDocument[]> {
-  const { data } = await api.get<{ data: MyDocument[] }>("/portal/documents");
-  return data.data;
-}
-
 export async function uploadMyDocument(name: string, file: File): Promise<MyDocument> {
   const form = new FormData();
   form.append("file", file);
   form.append("name", name);
   const { data } = await api.post<{ data: MyDocument }>("/portal/documents", form);
   return data.data;
-}
-
-export async function deleteMyDocument(docId: string): Promise<void> {
-  await api.delete(`/portal/documents/${docId}`);
-}
-
-export function getMyDocumentDownloadUrl(docId: string): string {
-  return `/api/portal/documents/${docId}/download`;
-}
-
-export function getMyDocumentPreviewUrl(docId: string): string {
-  return `/api/portal/documents/${docId}/preview`;
 }

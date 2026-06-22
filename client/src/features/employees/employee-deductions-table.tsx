@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/features/auth/auth.store";
 import { listDeductions } from "@/features/deductions/deductions.api";
 import {
   listEmployeeDeductions,
@@ -40,6 +41,8 @@ interface Props {
 
 export default function EmployeeDeductionsTable({ employeeId, pendingDeductions, onPendingChange }: Props) {
   const isOnline = !!employeeId;
+  // Managers may add and edit deductions, but only admins may remove them.
+  const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
 
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -48,6 +51,11 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
   const [selectedDeductionId, setSelectedDeductionId] = useState("");
   const [amountInput, setAmountInput] = useState("");
   const [totalBalanceInput, setTotalBalanceInput] = useState("");
+
+  // Inline edit of an existing row's amount / total payable
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editTotalBalance, setEditTotalBalance] = useState("");
 
   const empDeductionsQuery = useQuery({
     queryKey: ["employee-deductions", employeeId],
@@ -129,6 +137,28 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
     },
     onError: (err) => toast(extractErrorMessage(err), "error"),
   });
+
+  const editMutation = useMutation({
+    mutationFn: (vars: { edId: string; amount: number | null; totalBalance: number | null }) =>
+      updateEmployeeDeduction(employeeId!, vars.edId, {
+        amount: vars.amount,
+        totalBalance: vars.totalBalance,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employee-deductions", employeeId] });
+      toast("Deduction updated", "success");
+      setEditingId(null);
+    },
+    onError: (err) => toast(extractErrorMessage(err), "error"),
+  });
+
+  function saveEdit(edId: string) {
+    const amount = editAmount.trim() === "" ? null : parseFloat(editAmount);
+    const totalBalance = editTotalBalance.trim() === "" ? null : parseFloat(editTotalBalance);
+    if (amount !== null && !Number.isFinite(amount)) return;
+    if (totalBalance !== null && !Number.isFinite(totalBalance)) return;
+    editMutation.mutate({ edId, amount, totalBalance });
+  }
 
   const isLoading = isOnline && empDeductionsQuery.isLoading;
   const noRows = isOnline ? onlineAssigned.length === 0 : offlineAssigned.length === 0;
@@ -216,6 +246,7 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                 const paidAmount = toNum(ed.paidAmount);
                 const remaining = totalBalance !== null ? Math.max(0, totalBalance - paidAmount) : null;
                 const isSettled = totalBalance !== null && paidAmount >= totalBalance;
+                const isEditingRow = editingId === ed.id;
 
                 return (
                   <tr key={ed.id} className={`border-b last:border-b-0 ${isSettled ? "bg-amber-50" : "hover:bg-gray-50"}`}>
@@ -230,9 +261,36 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{fmt(effectiveAmount)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {isEditingRow ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="w-24 rounded border border-gray-200 bg-white px-2 py-1 text-right text-xs tabular-nums focus:outline-none focus:border-red-400"
+                        />
+                      ) : (
+                        fmt(effectiveAmount)
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">
-                      {totalBalance !== null ? fmt(totalBalance) : "—"}
+                      {isEditingRow ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Recurring"
+                          value={editTotalBalance}
+                          onChange={(e) => setEditTotalBalance(e.target.value)}
+                          className="w-24 rounded border border-gray-200 bg-white px-2 py-1 text-right text-xs tabular-nums focus:outline-none focus:border-red-400"
+                        />
+                      ) : totalBalance !== null ? (
+                        fmt(totalBalance)
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">
                       {totalBalance !== null ? fmt(paidAmount) : "—"}
@@ -248,25 +306,66 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                     </td>
                     <td className="px-2 py-2.5">
                       <div className="flex items-center justify-end gap-1">
-                        {isSettled && (
-                          <button
-                            type="button"
-                            title="Reset paid amount"
-                            onClick={() => resetPaidMutation.mutate(ed.id)}
-                            disabled={resetPaidMutation.isPending}
-                            className="rounded px-1.5 py-0.5 text-[10px] text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-50"
-                          >
-                            Reset
-                          </button>
+                        {isEditingRow ? (
+                          <>
+                            <button
+                              type="button"
+                              title="Save"
+                              onClick={() => saveEdit(ed.id)}
+                              disabled={editMutation.isPending}
+                              className="rounded p-1 text-green-600 hover:bg-green-50 transition-colors disabled:opacity-50"
+                            >
+                              {editMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                            </button>
+                            <button
+                              type="button"
+                              title="Cancel"
+                              onClick={() => setEditingId(null)}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {/* Edit amount / total payable — admins and managers */}
+                            <button
+                              type="button"
+                              title="Edit amount"
+                              onClick={() => {
+                                setEditingId(ed.id);
+                                setEditAmount(ed.amount != null ? String(toNum(ed.amount)) : String(toNum(ed.deduction.amount)));
+                                setEditTotalBalance(ed.totalBalance != null ? String(toNum(ed.totalBalance)) : "");
+                              }}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            {/* Reset paid amount — admin only */}
+                            {isAdmin && isSettled && (
+                              <button
+                                type="button"
+                                title="Reset paid amount"
+                                onClick={() => resetPaidMutation.mutate(ed.id)}
+                                disabled={resetPaidMutation.isPending}
+                                className="rounded px-1.5 py-0.5 text-[10px] text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-50"
+                              >
+                                Reset
+                              </button>
+                            )}
+                            {/* Remove — admin only */}
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => removeMutation.mutate(ed.id)}
+                                disabled={removeMutation.isPending}
+                                className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => removeMutation.mutate(ed.id)}
-                          disabled={removeMutation.isPending}
-                          className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
                       </div>
                     </td>
                   </tr>

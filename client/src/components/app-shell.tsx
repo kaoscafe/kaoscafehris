@@ -36,7 +36,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER"], group: "overview" },
-  { to: "/employees", label: "Employees", icon: Users, roles: ["ADMIN"], group: "manage" },
+  { to: "/employees", label: "Employees", icon: Users, roles: ["ADMIN", "MANAGER"], group: "manage" },
   { to: "/branches", label: "Branches", icon: Building2, roles: ["ADMIN"], group: "manage" },
   { to: "/scheduling", label: "Schedule", icon: CalendarClock, roles: ["ADMIN", "MANAGER"], group: "manage" },
   { to: "/attendance", label: "Attendance", icon: ClipboardCheck, roles: ["ADMIN", "MANAGER"], group: "manage" },

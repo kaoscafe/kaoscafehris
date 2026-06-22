@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, Download, Paperclip, Eye, X } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/features/auth/auth.store";
 import {
   listEmployeeDocuments,
   uploadEmployeeDocument,
@@ -33,6 +34,8 @@ interface Props {
 export default function EmployeeDocumentsTable({ employeeId }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  // Managers may only ADD files — they cannot view, download, or delete existing ones.
+  const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
 
   const [showAddRow, setShowAddRow] = useState(false);
   const [docName, setDocName] = useState("");
@@ -44,9 +47,10 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
   const docsQuery = useQuery({
     queryKey: ["employee-documents", employeeId],
     queryFn: () => listEmployeeDocuments(employeeId),
+    enabled: isAdmin,
   });
 
-  const documents = docsQuery.data ?? [];
+  const documents = isAdmin ? (docsQuery.data ?? []) : [];
 
   function resetAddForm() {
     setDocName("");
@@ -113,7 +117,7 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
               {documents.length === 0 && !showAddRow && (
                 <tr>
                   <td colSpan={4} className="py-5 text-center text-xs text-gray-400 italic">
-                    No documents yet.
+                    {isAdmin ? "No documents yet." : "Uploaded files are managed by the Admin."}
                   </td>
                 </tr>
               )}
@@ -152,15 +156,17 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
                       >
                         <Download className="h-3 w-3" />
                       </a>
-                      <button
-                        type="button"
-                        onClick={() => deleteMutation.mutate(doc.id)}
-                        disabled={deleteMutation.isPending}
-                        className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => deleteMutation.mutate(doc.id)}
+                          disabled={deleteMutation.isPending}
+                          className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

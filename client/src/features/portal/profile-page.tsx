@@ -3,10 +3,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import {
-  Camera, Download, Eye, FileText, KeyRound, Loader2,
-  Paperclip, Pencil, Plus, Trash2,
+  Camera, FileText, KeyRound, Loader2,
+  Paperclip, Pencil, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,15 +22,10 @@ import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
 import {
   changePassword,
-  deleteMyDocument,
-  getMyDocumentDownloadUrl,
-  getMyDocumentPreviewUrl,
   getProfile,
-  listMyDocuments,
   updateProfile,
   uploadMyDocument,
   uploadProfilePhoto,
-  type MyDocument,
   type UpdateProfileInput,
 } from "./portal.api";
 
@@ -54,10 +48,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isPreviewable(mimeType: string) {
-  return mimeType.startsWith("image/") || mimeType === "application/pdf";
 }
 
 // ─── Upload Document Sheet ─────────────────────────────────────────────────────
@@ -142,73 +132,10 @@ function UploadDocumentSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Document Preview Sheet ────────────────────────────────────────────────────
-
-function DocumentPreviewSheet({ doc, onClose }: { doc: MyDocument; onClose: () => void }) {
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogHeader>
-        <DialogTitle className="truncate">{doc.name}</DialogTitle>
-        <DialogDescription className="truncate">{doc.originalName}</DialogDescription>
-      </DialogHeader>
-      <div className="flex-1 overflow-auto flex items-center justify-center min-h-[40vh] bg-gray-50 rounded-lg">
-        {doc.mimeType.startsWith("image/") ? (
-          <img
-            src={getMyDocumentPreviewUrl(doc.id)}
-            alt={doc.name}
-            className="max-w-full max-h-[60vh] object-contain"
-          />
-        ) : (
-          <iframe
-            src={getMyDocumentPreviewUrl(doc.id)}
-            title={doc.name}
-            className="w-full rounded"
-            style={{ height: "60vh" }}
-          />
-        )}
-      </div>
-      <div className="text-xs text-muted-foreground flex gap-4 pt-2">
-        <span>{formatFileSize(doc.size)}</span>
-        <span>Uploaded {format(new Date(doc.uploadedAt), "MMM d, yyyy")}</span>
-      </div>
-      <DialogFooter>
-        <a
-          href={getMyDocumentDownloadUrl(doc.id)}
-          download
-          className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium border border-gray-200 hover:bg-gray-50"
-        >
-          <Download className="h-4 w-4" />
-          Download
-        </a>
-        <Button type="button" variant="outline" onClick={onClose}>Close</Button>
-      </DialogFooter>
-    </Dialog>
-  );
-}
-
 // ─── My Documents Card ─────────────────────────────────────────────────────────
 
 function MyDocumentsCard() {
-  const { toast } = useToast();
-  const qc = useQueryClient();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [previewDoc, setPreviewDoc] = useState<MyDocument | null>(null);
-
-  const docsQuery = useQuery({
-    queryKey: ["my-documents"],
-    queryFn: listMyDocuments,
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (docId: string) => deleteMyDocument(docId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-documents"] });
-      toast("Document deleted", "success");
-    },
-    onError: (err) => toast(extractErrorMessage(err), "error"),
-  });
-
-  const docs = docsQuery.data ?? [];
 
   return (
     <>
@@ -224,63 +151,14 @@ function MyDocumentsCard() {
           </Button>
         </div>
 
-        {docsQuery.isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : docs.length === 0 ? (
-          <div className="flex flex-col items-center py-8 text-center">
-            <FileText className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {docs.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center gap-3 rounded-lg border px-4 py-3"
-              >
-                <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{doc.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatFileSize(doc.size)} · {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {isPreviewable(doc.mimeType) && (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewDoc(doc)}
-                      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-gray-100 transition-colors"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  )}
-                  <a
-                    href={getMyDocumentDownloadUrl(doc.id)}
-                    download
-                    className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-gray-100 transition-colors"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => deleteMut.mutate(doc.id)}
-                    disabled={deleteMut.isPending}
-                    className="flex h-8 w-8 items-center justify-center rounded-md text-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col items-center py-8 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">Submit your documents here</p>
+          <p className="text-xs text-muted-foreground mt-1">Uploaded files are managed by the Admin.</p>
+        </div>
       </div>
 
       {uploadOpen && <UploadDocumentSheet onClose={() => setUploadOpen(false)} />}
-      {previewDoc && <DocumentPreviewSheet doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
     </>
   );
 }

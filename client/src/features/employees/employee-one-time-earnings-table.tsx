@@ -4,6 +4,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/features/auth/auth.store";
 import {
   listEmployeeOneTimeEarnings,
   addEmployeeOneTimeEarning,
@@ -41,6 +42,7 @@ export default function EmployeeOneTimeEarningsTable({
   onPendingChange,
 }: Props) {
   const isOnline = !!employeeId;
+  const canManage = useAuthStore((s) => s.user?.role) === "ADMIN";
 
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -115,7 +117,7 @@ export default function EmployeeOneTimeEarningsTable({
         <h3 className="text-xs font-bold uppercase tracking-widest" style={{ color: BRAND }}>
           One-Time Earnings
         </h3>
-        {!showAddRow && (
+        {canManage && !showAddRow && (
           <button
             type="button"
             onClick={() => setShowAddRow(true)}
@@ -168,13 +170,15 @@ export default function EmployeeOneTimeEarningsTable({
                       </span>
                     </td>
                     <td className="px-2 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => onPendingChange?.(offlineRows.filter((_, idx) => idx !== i))}
-                        className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => onPendingChange?.(offlineRows.filter((_, idx) => idx !== i))}
+                          className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -201,7 +205,7 @@ export default function EmployeeOneTimeEarningsTable({
                       )}
                     </td>
                     <td className="px-2 py-2.5">
-                      {!ote.payrollRunId && (
+                      {canManage && !ote.payrollRunId && (
                         <button
                           type="button"
                           onClick={() => removeMutation.mutate(ote.id)}

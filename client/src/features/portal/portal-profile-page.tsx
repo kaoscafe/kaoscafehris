@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import {
   Building2, Calendar, Camera, CreditCard,
   FileText, KeyRound, Loader2, LogOut,
@@ -17,7 +16,6 @@ import { useLogout } from "@/features/auth/use-login";
 import {
   changePassword,
   getProfile,
-  listMyDocuments,
   updateProfile,
   uploadMyDocument,
   uploadProfilePhoto,
@@ -319,13 +317,6 @@ function UploadDocumentSheet({ onClose }: { onClose: () => void }) {
 function MyDocumentsCard() {
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  const docsQuery = useQuery({
-    queryKey: ["my-documents"],
-    queryFn: listMyDocuments,
-  });
-
-  const docs = docsQuery.data ?? [];
-
   return (
     <>
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -341,39 +332,13 @@ function MyDocumentsCard() {
           </button>
         </div>
 
-        {docsQuery.isLoading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl mb-3" style={{ backgroundColor: "#FAF0F0" }}>
+            <FileText className="h-6 w-6" style={{ color: BRAND }} />
           </div>
-        ) : docs.length === 0 ? (
-          <div className="flex flex-col items-center py-8 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl mb-3" style={{ backgroundColor: "#FAF0F0" }}>
-              <FileText className="h-6 w-6" style={{ color: BRAND }} />
-            </div>
-            <p className="text-sm text-gray-500">No documents uploaded yet</p>
-            <p className="text-xs text-gray-400 mt-1">Upload your clearances, IDs, or certificates</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {docs.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "#FAF0F0" }}>
-                  <Paperclip className="h-4 w-4" style={{ color: BRAND }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
-                  <p className="text-xs text-gray-400">{formatFileSize(doc.size)} · {format(new Date(doc.uploadedAt), "MMM d, yyyy")}</p>
-                </div>
-                <div className="text-xs text-gray-400">
-                  Uploaded on {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          <p className="text-sm text-gray-500">Submit your documents here</p>
+          <p className="text-xs text-gray-400 mt-1">Upload your clearances, IDs, or certificates. Uploaded files are managed by the Admin.</p>
+        </div>
       </div>
 
       {uploadOpen && <UploadDocumentSheet onClose={() => setUploadOpen(false)} />}

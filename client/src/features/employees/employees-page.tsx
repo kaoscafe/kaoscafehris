@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileUp, Loader2, Pencil, Search } from "lucide-react";
+import { Eye, FileUp, Loader2, Pencil, Search } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { useToast } from "@/components/ui/toast";
 import Pagination from "@/components/ui/pagination";
 import { extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/features/auth/auth.store";
 import { listBranches } from "@/features/branches/branches.api";
 import {
   getImportTemplateUrl,
@@ -306,6 +307,8 @@ export default function EmployeesPage() {
     onError: (err) => toast(extractErrorMessage(err), "error"),
   });
     const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+    // Managers have read-only access to employees; they may only add deductions and upload documents.
+    const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
 
     const deleteMutation = useMutation({
       mutationFn: (id: string) => deleteEmployee(id),
@@ -391,46 +394,50 @@ export default function EmployeesPage() {
           <h1 className="font-heading text-3xl font-bold text-gray-900">Employees</h1>
         </div>
         <div className="flex items-center gap-2">
-          <a href={getImportTemplateUrl()} download>
-            <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Template
-            </button>
-          </a>
-          <button
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={previewMutation.isPending || importMutation.isPending || !hasBranches}
-            title={!hasBranches ? "Add at least one branch before importing employees" : ""}
-          >
-            {previewMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileUp className="h-4 w-4" />
-            )}
-            + Import CSV
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setPendingFile(file);
-                previewMutation.mutate(file);
-              }
-            }}
-          />
-          <button
-            onClick={() => { setDetailEmployee(null); setPendingDeductions([]); setPendingEarnings([]); setIsEditMode(true); }}
-            className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: BRAND }}
-            disabled={!hasBranches}
-            title={!hasBranches ? "Add at least one branch before creating employees" : ""}
-          >
-            + Add Employee
-          </button>
+          {isAdmin && (
+            <>
+              <a href={getImportTemplateUrl()} download>
+                <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  Template
+                </button>
+              </a>
+              <button
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={previewMutation.isPending || importMutation.isPending || !hasBranches}
+                title={!hasBranches ? "Add at least one branch before importing employees" : ""}
+              >
+                {previewMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileUp className="h-4 w-4" />
+                )}
+                + Import CSV
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setPendingFile(file);
+                    previewMutation.mutate(file);
+                  }
+                }}
+              />
+              <button
+                onClick={() => { setDetailEmployee(null); setPendingDeductions([]); setPendingEarnings([]); setIsEditMode(true); }}
+                className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: BRAND }}
+                disabled={!hasBranches}
+                title={!hasBranches ? "Add at least one branch before creating employees" : ""}
+              >
+                + Add Employee
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -581,20 +588,22 @@ export default function EmployeesPage() {
                       setIsEditMode(true);
                     }}
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
+                    {isAdmin ? <Pencil className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {isAdmin ? "Edit" : "View"}
                   </button>
-                  <button
-                    className="ml-3 inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
-                    onClick={(evt) => {
-                      evt.stopPropagation();
-                      setDeletingEmployee(e);
-                    }}
-                    disabled={deleteMutation.isPending}
-                    title="Permanently delete employee"
-                  >
-                    Delete
-                  </button>
+                  {isAdmin && (
+                    <button
+                      className="ml-3 inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                      onClick={(evt) => {
+                        evt.stopPropagation();
+                        setDeletingEmployee(e);
+                      }}
+                      disabled={deleteMutation.isPending}
+                      title="Permanently delete employee"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -648,14 +657,19 @@ export default function EmployeesPage() {
         className="max-w-2xl"
       >
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Employee" : "Add New Employee"}</DialogTitle>
+          <DialogTitle>{isEdit ? (isAdmin ? "Edit Employee" : "Employee Details") : "Add New Employee"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update profile and account details." : "Create the user login and employee profile."}
+            {isEdit
+              ? (isAdmin ? "Update profile and account details." : "View profile and account details. You may add deductions and upload documents.")
+              : "Create the user login and employee profile."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((v) => formMutation.mutate(v))} noValidate>
+        <form onSubmit={handleSubmit((v) => { if (!isAdmin) return; formMutation.mutate(v); })} noValidate>
           <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-6 mt-4">
+
+                {/* Employee detail fields — read-only for managers */}
+                <fieldset disabled={!isAdmin} className="space-y-6 m-0 p-0 border-0 min-w-0">
 
                 {/* ACCOUNT */}
                 <div>
@@ -798,6 +812,8 @@ export default function EmployeesPage() {
                   </div>
                 </div>
 
+                </fieldset>
+
                 {/* DEDUCTIONS */}
                 {detailEmployee ? (
                   <EmployeeDeductionsTable employeeId={detailEmployee.id} />
@@ -841,17 +857,19 @@ export default function EmployeesPage() {
               onClick={() => { setIsEditMode(false); setDetailEmployee(null); }}
               className="px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              {isAdmin ? "Cancel" : "Close"}
             </button>
-            <button
-              type="submit"
-              disabled={formMutation.isPending}
-              className="px-5 py-2 rounded-lg font-medium text-white flex items-center gap-2 transition-colors disabled:opacity-60"
-              style={{ backgroundColor: BRAND }}
-            >
-              {formMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
-              {isEdit ? "Save Changes" : "Create Employee"}
-            </button>
+            {isAdmin && (
+              <button
+                type="submit"
+                disabled={formMutation.isPending}
+                className="px-5 py-2 rounded-lg font-medium text-white flex items-center gap-2 transition-colors disabled:opacity-60"
+                style={{ backgroundColor: BRAND }}
+              >
+                {formMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+                {isEdit ? "Save Changes" : "Create Employee"}
+              </button>
+            )}
           </DialogFooter>
         </form>
       </Dialog>

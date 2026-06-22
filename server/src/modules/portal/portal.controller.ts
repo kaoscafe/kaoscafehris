@@ -1,5 +1,3 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Request, Response, NextFunction } from "express";
 import { AppError } from "../../middleware/error-handler.js";
 import { dateRangeQuerySchema } from "./portal.schema.js";
@@ -100,19 +98,9 @@ export async function getAttendance(
 }
 
 // --- My Documents -----------------------------------------------------------
-
-type DocParams = { docId: string };
-
-export async function listMyDocuments(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { userId } = requireUser(req);
-    const employeeId = await portalService.resolveEmployeeIdOrThrow(userId);
-    const data = await docService.listEmployeeDocuments(employeeId);
-    res.json({ data });
-  } catch (err) {
-    next(err);
-  }
-}
+// Self-service is upload-only. Viewing/listing, downloading, previewing, and
+// deleting are intentionally not exposed — uploaded documents are managed by
+// the Admin via the employees module.
 
 export async function uploadMyDocument(req: Request, res: Response, next: NextFunction) {
   try {
@@ -122,45 +110,6 @@ export async function uploadMyDocument(req: Request, res: Response, next: NextFu
     const name = (req.body.name as string) || req.file.originalname;
     const data = await docService.createEmployeeDocument(employeeId, req.file, name);
     res.status(201).json({ data });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function downloadMyDocument(req: Request<DocParams>, res: Response, next: NextFunction) {
-  try {
-    const { userId } = requireUser(req);
-    const employeeId = await portalService.resolveEmployeeIdOrThrow(userId);
-    const doc = await docService.getDocumentById(req.params.docId, employeeId);
-    const uploadsBase = process.env.UPLOADS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "uploads");
-    const filePath = path.join(uploadsBase, "documents", doc.filename);
-    res.download(filePath, doc.originalName);
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function previewMyDocument(req: Request<DocParams>, res: Response, next: NextFunction) {
-  try {
-    const { userId } = requireUser(req);
-    const employeeId = await portalService.resolveEmployeeIdOrThrow(userId);
-    const doc = await docService.getDocumentById(req.params.docId, employeeId);
-    const uploadsBase = process.env.UPLOADS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "uploads");
-    const filePath = path.resolve(path.join(uploadsBase, "documents", doc.filename));
-    res.setHeader("Content-Type", doc.mimeType);
-    res.setHeader("Content-Disposition", `inline; filename="${doc.originalName.replace(/"/g, "_")}"`);
-    res.sendFile(filePath);
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function deleteMyDocument(req: Request<DocParams>, res: Response, next: NextFunction) {
-  try {
-    const { userId } = requireUser(req);
-    const employeeId = await portalService.resolveEmployeeIdOrThrow(userId);
-    await docService.deleteEmployeeDocument(employeeId, req.params.docId);
-    res.status(204).send();
   } catch (err) {
     next(err);
   }
