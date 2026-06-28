@@ -61,7 +61,9 @@ export async function localCalendarDateOf(instant: Date, dayCutoffHour = 0): Pro
 }
 
 function diffMinutes(from: Date, to: Date): number {
-  return Math.round((to.getTime() - from.getTime()) / 60_000);
+  // Truncate partial minutes (no rounding up): a clock-in at 7:00:59 against a
+  // 7:00:00 scheduled start is 0 minutes late, not 1.
+  return Math.floor((to.getTime() - from.getTime()) / 60_000);
 }
 
 /**
