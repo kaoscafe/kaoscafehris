@@ -72,11 +72,11 @@ router.post("/:id/one-time-earnings", authorize("ADMIN"), employeeController.add
 router.patch("/:id/one-time-earnings/:oteId", authorize("ADMIN"), employeeController.updateOneTimeEarning);
 router.delete("/:id/one-time-earnings/:oteId", authorize("ADMIN"), employeeController.removeOneTimeEarning);
 
-// Employee documents — managers may ONLY upload; viewing, downloading, and deleting are admin-only.
-router.get("/:id/documents", authorize("ADMIN"), employeeController.listDocuments);
+// Employee documents — managers may view, upload, download, and preview; only admins may delete.
+router.get("/:id/documents", authorize("ADMIN", "MANAGER"), employeeController.listDocuments);
 router.post("/:id/documents", authorize("ADMIN", "MANAGER"), documentUpload.single("file"), employeeController.uploadDocument);
-router.get("/:id/documents/:docId/download", authorize("ADMIN"), employeeController.downloadDocument);
-router.get("/:id/documents/:docId/preview", authorize("ADMIN"), employeeController.previewDocument);
+router.get("/:id/documents/:docId/download", authorize("ADMIN", "MANAGER"), employeeController.downloadDocument);
+router.get("/:id/documents/:docId/preview", authorize("ADMIN", "MANAGER"), employeeController.previewDocument);
 router.delete("/:id/documents/:docId", authorize("ADMIN"), employeeController.deleteDocument);
 
 export default router;

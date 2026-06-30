@@ -34,7 +34,7 @@ interface Props {
 export default function EmployeeDocumentsTable({ employeeId }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  // Managers may only ADD files — they cannot view, download, or delete existing ones.
+  // Managers may view, upload, download, and preview documents — only admins may delete.
   const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
 
   const [showAddRow, setShowAddRow] = useState(false);
@@ -47,10 +47,9 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
   const docsQuery = useQuery({
     queryKey: ["employee-documents", employeeId],
     queryFn: () => listEmployeeDocuments(employeeId),
-    enabled: isAdmin,
   });
 
-  const documents = isAdmin ? (docsQuery.data ?? []) : [];
+  const documents = docsQuery.data ?? [];
 
   function resetAddForm() {
     setDocName("");
@@ -117,7 +116,7 @@ export default function EmployeeDocumentsTable({ employeeId }: Props) {
               {documents.length === 0 && !showAddRow && (
                 <tr>
                   <td colSpan={4} className="py-5 text-center text-xs text-gray-400 italic">
-                    {isAdmin ? "No documents yet." : "Uploaded files are managed by the Admin."}
+                    No documents yet.
                   </td>
                 </tr>
               )}
