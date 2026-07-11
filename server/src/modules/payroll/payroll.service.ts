@@ -85,7 +85,85 @@ const runInclude = {
   },
 } satisfies Prisma.PayrollRunInclude;
 
-const payslipExportInclude = {
+function hydratePayslipEmployeeRateSnapshot<T extends {
+  employee: {
+    payType?: string;
+    basicSalary?: Prisma.Decimal | number | null;
+    hourlyRate?: Prisma.Decimal | number | null;
+  };
+  basicPay?: Prisma.Decimal | number | null;
+  totalHoursWorked?: Prisma.Decimal | number | null;
+  totalOtHours?: Prisma.Decimal | number | null;
+  effectivePayType?: string | null;
+  effectiveBasicSalary?: Prisma.Decimal | number | null;
+  effectiveHourlyRate?: Prisma.Decimal | number | null;
+}>(payslip: T): T {
+  const hasExplicitSnapshot =
+    payslip.effectivePayType !== null && payslip.effectivePayType !== undefined ||
+    payslip.effectiveBasicSalary !== null && payslip.effectiveBasicSalary !== undefined ||
+    payslip.effectiveHourlyRate !== null && payslip.effectiveHourlyRate !== undefined;
+
+  const employeePayType = payslip.employee.payType ?? "MONTHLY_FIXED";
+  const explicitPayType = payslip.effectivePayType ?? employeePayType;
+  const regularHours = Math.max(0, toNum(payslip.totalHoursWorked) - toNum(payslip.totalOtHours));
+  const derivedPayType = employeePayType === "HOURLY" ? "HOURLY" : "MONTHLY_FIXED";
+
+  const payType = hasExplicitSnapshot ? explicitPayType : derivedPayType;
+  const basicSalary = hasExplicitSnapshot
+    ? toNum(payslip.effectiveBasicSalary ?? payslip.employee.basicSalary ?? 0)
+    : payType === "HOURLY"
+      ? 0
+      : round2(toNum(payslip.basicPay) * 2);
+  const hourlyRate = hasExplicitSnapshot
+    ? toNum(payslip.effectiveHourlyRate ?? payslip.employee.hourlyRate ?? null)
+    : payType === "HOURLY" && regularHours > 0
+      ? round2(toNum(payslip.basicPay) / regularHours)
+      : toNum(payslip.employee.hourlyRate ?? null);
+
+  return {
+    ...payslip,
+    employee: {
+      ...payslip.employee,
+      payType,
+      basicSalary,
+      hourlyRate,
+    },
+  };
+}
+
+const payslipExportSelect = {
+  id: true,
+  payrollRunId: true,
+  employeeId: true,
+  basicPay: true,
+  overtimePay: true,
+  bonuses: true,
+  allowances: true,
+  holidayPay: true,
+  paidLeaveCredits: true,
+  grossPay: true,
+  sssContribution: true,
+  philhealthContribution: true,
+  pagibigContribution: true,
+  withholdingTax: true,
+  lateDeductions: true,
+  unpaidLeaveDeductions: true,
+  cashAdvance: true,
+  salaryLoan: true,
+  otherDeductions: true,
+  totalDeductions: true,
+  netPay: true,
+  totalHoursWorked: true,
+  totalScheduledHours: true,
+  totalOtHours: true,
+  totalLateMinutes: true,
+  effectivePayType: true,
+  effectiveBasicSalary: true,
+  effectiveHourlyRate: true,
+  status: true,
+  pdfUrl: true,
+  createdAt: true,
+  updatedAt: true,
   employee: {
     select: {
       id: true,
@@ -116,9 +194,41 @@ const payslipExportInclude = {
   },
   earnings: { orderBy: { type: "asc" } },
   deductions: { orderBy: { type: "asc" } },
-} satisfies Prisma.PayslipInclude;
+} satisfies Prisma.PayslipSelect;
 
-const payslipInclude = {
+const payslipSelect = {
+  id: true,
+  payrollRunId: true,
+  employeeId: true,
+  basicPay: true,
+  overtimePay: true,
+  bonuses: true,
+  allowances: true,
+  holidayPay: true,
+  paidLeaveCredits: true,
+  grossPay: true,
+  sssContribution: true,
+  philhealthContribution: true,
+  pagibigContribution: true,
+  withholdingTax: true,
+  lateDeductions: true,
+  unpaidLeaveDeductions: true,
+  cashAdvance: true,
+  salaryLoan: true,
+  otherDeductions: true,
+  totalDeductions: true,
+  netPay: true,
+  totalHoursWorked: true,
+  totalScheduledHours: true,
+  totalOtHours: true,
+  totalLateMinutes: true,
+  effectivePayType: true,
+  effectiveBasicSalary: true,
+  effectiveHourlyRate: true,
+  status: true,
+  pdfUrl: true,
+  createdAt: true,
+  updatedAt: true,
   employee: {
     select: {
       id: true,
@@ -148,7 +258,7 @@ const payslipInclude = {
   },
   earnings: { orderBy: { type: "asc" } },
   deductions: { orderBy: { type: "asc" } },
-} satisfies Prisma.PayslipInclude;
+} satisfies Prisma.PayslipSelect;
 
 // --- Run CRUD --------------------------------------------------------------
 
@@ -1346,6 +1456,9 @@ export async function processRun(id: string) {
           totalScheduledHours,
           totalOtHours,
           totalLateMinutes: lateMinutesMap.get(emp.id) ?? 0,
+          effectivePayType: emp.payType,
+          effectiveBasicSalary: toNum(emp.basicSalary),
+          effectiveHourlyRate: emp.payType === "HOURLY" ? toNum(emp.hourlyRate) : null,
           status: "DRAFT",
           earnings: { create: [...overtimeEarnings, ...nightDiffEarnings, ...holidayEarnings, ...paidLeaveEarnings, ...allProfileEarningRows] },
           deductions: { create: deductionRows },
@@ -1491,10 +1604,10 @@ export async function completeRun(id: string, userId: string) {
 export async function getPayslipById(id: string) {
   const row = await prisma.payslip.findUnique({
     where: { id },
-    include: payslipInclude,
+    select: payslipSelect,
   });
   if (!row) throw new AppError(404, "Payslip not found");
-  return row;
+  return hydratePayslipEmployeeRateSnapshot(row);
 }
 
 /**
@@ -1606,7 +1719,7 @@ export async function adjustPayslip(id: string, input: AdjustPayslipInput) {
         totalDeductions,
         netPay,
       },
-      include: payslipInclude,
+      select: payslipSelect,
     });
   });
 
@@ -1629,10 +1742,10 @@ export async function adjustPayslip(id: string, input: AdjustPayslipInput) {
 export async function getPayslipForExport(id: string) {
   const row = await prisma.payslip.findUnique({
     where: { id },
-    include: payslipExportInclude,
+    select: payslipExportSelect,
   });
   if (!row) throw new AppError(404, "Payslip not found");
-  return row;
+  return hydratePayslipEmployeeRateSnapshot(row);
 }
 
 /**
@@ -1645,38 +1758,7 @@ export async function getRunForExport(id: string) {
     include: {
       branch: true,
       payslips: {
-        include: {
-          employee: {
-            select: {
-              id: true,
-              employeeId: true,
-              firstName: true,
-              lastName: true,
-              position: true,
-              basicSalary: true,
-              payType: true,
-              hourlyRate: true,
-              employmentStatus: true,
-              sssNumber: true,
-              philhealthNumber: true,
-              pagibigNumber: true,
-              tinNumber: true,
-              userId: true,
-              branch: { select: { id: true, name: true, city: true, address: true } },
-            },
-          },
-          payrollRun: {
-            select: {
-              id: true,
-              periodStart: true,
-              periodEnd: true,
-              status: true,
-              branch: { select: { id: true, name: true, city: true, address: true } },
-            },
-          },
-          earnings: { orderBy: { type: "asc" } },
-          deductions: { orderBy: { type: "asc" } },
-        },
+        select: payslipExportSelect,
         orderBy: [
           { employee: { lastName: "asc" } },
           { employee: { firstName: "asc" } },
@@ -1688,7 +1770,10 @@ export async function getRunForExport(id: string) {
   if (row.payslips.length === 0) {
     throw new AppError(400, "Run has no payslips to export");
   }
-  return row;
+  return {
+    ...row,
+    payslips: row.payslips.map((payslip) => hydratePayslipEmployeeRateSnapshot(payslip)),
+  };
 }
 
 /**
