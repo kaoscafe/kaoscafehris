@@ -85,7 +85,11 @@ export async function getPayslip(
   next: NextFunction
 ) {
   try {
-    const data = await payrollService.getPayslipById(req.params.id);
+    const data = await payrollService.getPayslipById(
+      req.params.id,
+      req.user?.role,
+      req.user?.userId
+    );
     res.json({ data });
   } catch (err) {
     next(err);
@@ -122,7 +126,7 @@ export async function getPayslipPdf(
 ) {
   try {
     if (!req.user) throw new AppError(401, "Authentication required");
-    const payslip = await payrollService.getPayslipForExport(req.params.id);
+    const payslip = await payrollService.getPayslipForExport(req.params.id, req.user.role);
     payrollService.assertPayslipAccess(
       payslip.employee.userId,
       req.user.userId,
@@ -155,7 +159,7 @@ export async function getRunPdf(
   next: NextFunction
 ) {
   try {
-    const run = await payrollService.getRunForExport(req.params.id);
+    const run = await payrollService.getRunForExport(req.params.id, req.user?.role);
     const pdf = await runToBuffer(run.payslips);
     const fname = sanitize(
       `payroll_${run.branch.name}_${periodSlug(
@@ -178,7 +182,7 @@ export async function getRunXlsx(
   next: NextFunction
 ) {
   try {
-    const run = await payrollService.getRunForExport(req.params.id);
+    const run = await payrollService.getRunForExport(req.params.id, req.user?.role);
     const xlsx = await runToXlsx(run);
     const fname = sanitize(
       `payroll_${run.branch.name}_${periodSlug(
@@ -219,7 +223,7 @@ export async function getMyPayslipDetail(
 ) {
   try {
     if (!req.user) throw new AppError(401, "Authentication required");
-    const payslip = await payrollService.getPayslipForExport(req.params.id);
+    const payslip = await payrollService.getPayslipForExport(req.params.id, req.user.role);
     payrollService.assertPayslipAccess(
       payslip.employee.userId,
       req.user.userId,

@@ -12,10 +12,26 @@ import prisma from "../../config/db.js";
 
 type IdParams = { id: string };
 
+function sanitizeEmployeeForRole<T extends { basicSalary?: unknown; hourlyRate?: unknown }>(
+  employee: T,
+  role?: string
+): T {
+  if (role === "MANAGER") {
+    return {
+      ...employee,
+      basicSalary: null,
+      hourlyRate: null,
+    } as T;
+  }
+  return employee;
+}
+
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = listEmployeeQuerySchema.parse(req.query);
-    const data = await employeeService.listEmployees(query);
+    const data = (await employeeService.listEmployees(query)).map((employee) =>
+      sanitizeEmployeeForRole(employee, req.user?.role)
+    );
     res.json({ data });
   } catch (err) {
     next(err);
@@ -29,7 +45,7 @@ export async function getById(
 ) {
   try {
     const data = await employeeService.getEmployeeById(req.params.id);
-    res.json({ data });
+    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role) });
   } catch (err) {
     next(err);
   }

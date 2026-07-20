@@ -97,7 +97,8 @@ function hydratePayslipEmployeeRateSnapshot<T extends {
   effectivePayType?: string | null;
   effectiveBasicSalary?: Prisma.Decimal | number | null;
   effectiveHourlyRate?: Prisma.Decimal | number | null;
-}>(payslip: T): T {
+}>(payslip: T, requestingRole?: "ADMIN" | "MANAGER" | "EMPLOYEE"): T {
+  const isManager = requestingRole === "MANAGER";
   const hasExplicitSnapshot =
     payslip.effectivePayType !== null && payslip.effectivePayType !== undefined ||
     payslip.effectiveBasicSalary !== null && payslip.effectiveBasicSalary !== undefined ||
@@ -109,24 +110,28 @@ function hydratePayslipEmployeeRateSnapshot<T extends {
   const derivedPayType = employeePayType === "HOURLY" ? "HOURLY" : "MONTHLY_FIXED";
 
   const payType = hasExplicitSnapshot ? explicitPayType : derivedPayType;
-  const basicSalary = hasExplicitSnapshot
-    ? toNum(payslip.effectiveBasicSalary ?? payslip.employee.basicSalary ?? 0)
-    : payType === "HOURLY"
-      ? 0
-      : round2(toNum(payslip.basicPay) * 2);
-  const hourlyRate = hasExplicitSnapshot
-    ? toNum(payslip.effectiveHourlyRate ?? payslip.employee.hourlyRate ?? null)
-    : payType === "HOURLY" && regularHours > 0
-      ? round2(toNum(payslip.basicPay) / regularHours)
-      : toNum(payslip.employee.hourlyRate ?? null);
+  const basicSalary = isManager
+    ? null
+    : hasExplicitSnapshot
+      ? toNum(payslip.effectiveBasicSalary ?? payslip.employee.basicSalary ?? 0)
+      : payType === "HOURLY"
+        ? 0
+        : round2(toNum(payslip.basicPay) * 2);
+  const hourlyRate = isManager
+    ? null
+    : hasExplicitSnapshot
+      ? toNum(payslip.effectiveHourlyRate ?? payslip.employee.hourlyRate ?? null)
+      : payType === "HOURLY" && regularHours > 0
+        ? round2(toNum(payslip.basicPay) / regularHours)
+        : toNum(payslip.employee.hourlyRate ?? null);
 
   return {
     ...payslip,
     employee: {
       ...payslip.employee,
       payType,
-      basicSalary,
-      hourlyRate,
+      basicSalary: basicSalary as T["employee"]["basicSalary"],
+      hourlyRate: hourlyRate as T["employee"]["hourlyRate"],
     },
   };
 }
@@ -244,6 +249,7 @@ const payslipSelect = {
       philhealthNumber: true,
       pagibigNumber: true,
       tinNumber: true,
+      userId: true,
       branch: { select: { id: true, name: true, city: true, address: true } },
     },
   },
@@ -1601,13 +1607,20 @@ export async function completeRun(id: string, userId: string) {
 
 // --- Payslip CRUD ----------------------------------------------------------
 
-export async function getPayslipById(id: string) {
+export async function getPayslipById(
+  id: string,
+  requestingRole?: "ADMIN" | "MANAGER" | "EMPLOYEE",
+  requestingUserId?: string
+) {
   const row = await prisma.payslip.findUnique({
     where: { id },
     select: payslipSelect,
   });
   if (!row) throw new AppError(404, "Payslip not found");
-  return hydratePayslipEmployeeRateSnapshot(row);
+  if (requestingRole && requestingRole !== "ADMIN" && requestingUserId) {
+    assertPayslipAccess(row.employee.userId, requestingUserId, requestingRole);
+  }
+  return hydratePayslipEmployeeRateSnapshot(row, requestingRole);
 }
 
 /**
@@ -1739,20 +1752,20 @@ export async function adjustPayslip(id: string, input: AdjustPayslipInput) {
  * Load a payslip plus everything the PDF renderer needs. Also returns
  * `employee.userId` so the caller can run the self-access check.
  */
-export async function getPayslipForExport(id: string) {
+export async function getPayslipForExport(id: string, requestingRole?: "ADMIN" | "MANAGER" | "EMPLOYEE") {
   const row = await prisma.payslip.findUnique({
     where: { id },
     select: payslipExportSelect,
   });
   if (!row) throw new AppError(404, "Payslip not found");
-  return hydratePayslipEmployeeRateSnapshot(row);
+  return hydratePayslipEmployeeRateSnapshot(row, requestingRole);
 }
 
 /**
  * Load a run with every payslip + relations, ready for bulk PDF / XLSX
  * export. Throws if the run has no payslips (nothing to export).
  */
-export async function getRunForExport(id: string) {
+export async function getRunForExport(id: string, requestingRole?: "ADMIN" | "MANAGER" | "EMPLOYEE") {
   const row = await prisma.payrollRun.findUnique({
     where: { id },
     include: {
@@ -1772,7 +1785,7 @@ export async function getRunForExport(id: string) {
   }
   return {
     ...row,
-    payslips: row.payslips.map((payslip) => hydratePayslipEmployeeRateSnapshot(payslip)),
+    payslips: row.payslips.map((payslip) => hydratePayslipEmployeeRateSnapshot(payslip, requestingRole)),
   };
 }
 

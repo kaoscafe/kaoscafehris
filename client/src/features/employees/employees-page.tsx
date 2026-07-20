@@ -195,7 +195,7 @@ export default function EmployeesPage() {
         employmentStatus: detailEmployee.employmentStatus,
         dateHired: detailEmployee.dateHired.slice(0, 10),
         payType: detailEmployee.payType,
-        basicSalary: parseFloat(detailEmployee.basicSalary),
+        basicSalary: detailEmployee.basicSalary ? parseFloat(detailEmployee.basicSalary) : 0,
         hourlyRate: detailEmployee.hourlyRate ? parseFloat(detailEmployee.hourlyRate) : undefined,
         phone: detailEmployee.phone ?? "",
         sssNumber: detailEmployee.sssNumber ?? "",
@@ -309,6 +309,7 @@ export default function EmployeesPage() {
     const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
     // Managers have read-only access to employees; they may only add deductions and upload documents.
     const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
+    const canViewRates = isAdmin;
 
     const deleteMutation = useMutation({
       mutationFn: (id: string) => deleteEmployee(id),
@@ -766,24 +767,32 @@ export default function EmployeesPage() {
                       <input {...register("dateHired")} type="date" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
                       {errors.dateHired && <p className="text-xs text-red-500 mt-1">{errors.dateHired.message}</p>}
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Pay Type *</label>
-                      <select {...register("payType")} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white">
-                        <option value="MONTHLY_FIXED">Monthly Fixed</option>
-                        <option value="HOURLY">Hourly</option>
-                      </select>
-                    </div>
-                    {payType === "HOURLY" ? (
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Hourly Rate (PHP/hr) *</label>
-                        <input {...register("hourlyRate")} type="number" step="any" min="0" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
-                        {errors.hourlyRate && <p className="text-xs text-red-500 mt-1">{errors.hourlyRate.message}</p>}
-                      </div>
+                    {canViewRates ? (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Pay Type *</label>
+                          <select {...register("payType")} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white">
+                            <option value="MONTHLY_FIXED">Monthly Fixed</option>
+                            <option value="HOURLY">Hourly</option>
+                          </select>
+                        </div>
+                        {payType === "HOURLY" ? (
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Hourly Rate (PHP/hr) *</label>
+                            <input {...register("hourlyRate")} type="number" step="any" min="0" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
+                            {errors.hourlyRate && <p className="text-xs text-red-500 mt-1">{errors.hourlyRate.message}</p>}
+                          </div>
+                        ) : (
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Basic Salary (PHP/mo) *</label>
+                            <input {...register("basicSalary")} type="number" step="0.01" min="0" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
+                            {errors.basicSalary && <p className="text-xs text-red-500 mt-1">{errors.basicSalary.message}</p>}
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Basic Salary (PHP/mo) *</label>
-                        <input {...register("basicSalary")} type="number" step="0.01" min="0" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400" />
-                        {errors.basicSalary && <p className="text-xs text-red-500 mt-1">{errors.basicSalary.message}</p>}
+                      <div className="col-span-2 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
+                        Pay rate details are restricted for managers.
                       </div>
                     )}
                   </div>

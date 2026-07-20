@@ -54,7 +54,7 @@ export interface Employee {
   dateHired: string;
   dateTerminated: string | null;
   payType: PayType;
-  basicSalary: string; // Prisma Decimal is serialized as string
+  basicSalary: string | null; // Prisma Decimal is serialized as string
   hourlyRate: string | null;
   sssNumber: string | null;
   philhealthNumber: string | null;
