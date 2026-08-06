@@ -100,11 +100,11 @@ export default function ShiftFormDialog({ open, onOpenChange, shift }: Props) {
   }, [open, shift, reset]);
 
   useEffect(() => {
-    if (!open || !selectedShiftType) return;
+    if (!open || !selectedShiftTypeId || !selectedShiftType) return;
     setValue("name", selectedShiftType.name, { shouldDirty: true });
     setValue("startTime", formatShiftTime(selectedShiftType.startTime), { shouldDirty: true });
     setValue("endTime", formatShiftTime(selectedShiftType.endTime), { shouldDirty: true });
-  }, [open, selectedShiftType, setValue]);
+  }, [open, selectedShiftTypeId, selectedShiftType, setValue]);
 
   const mutation = useMutation({
     mutationFn: async (values: EditValues) => {
