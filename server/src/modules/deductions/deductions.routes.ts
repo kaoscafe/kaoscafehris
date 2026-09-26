@@ -48,6 +48,19 @@ router.delete("/:id", authorize("ADMIN"), async (req, res, next) => {
     const { id } = req.params as { id: string };
     const existing = await prisma.deduction.findUnique({ where: { id } });
     if (!existing) throw new AppError(404, "Deduction not found");
+
+    // Deleting the definition cascades to every assignment, including settled ones
+    // kept as payment history, so refuse while any employee still holds it.
+    const assignedCount = await prisma.employeeDeduction.count({ where: { deductionId: id } });
+    if (assignedCount > 0) {
+      throw new AppError(
+        409,
+        `"${existing.name}" is assigned to ${assignedCount} employee record${
+          assignedCount === 1 ? "" : "s"
+        }, including settled ones kept as history. Remove those assignments first.`
+      );
+    }
+
     await prisma.deduction.delete({ where: { id } });
     res.json({ ok: true });
   } catch (err) { next(err); }

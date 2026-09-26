@@ -21,6 +21,12 @@ function toNum(v: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Settled = tracks a balance that is fully paid. Recurring assignments never settle. */
+function isSettled(ed: { totalBalance: string | null; paidAmount: string }): boolean {
+  if (ed.totalBalance === null) return false;
+  return toNum(ed.paidAmount) >= toNum(ed.totalBalance);
+}
+
 function fmt(n: number) {
   return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -71,12 +77,17 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
   const onlineAssigned = empDeductionsQuery.data ?? [];
   const offlineAssigned = pendingDeductions ?? [];
 
-  const assignedIds = isOnline
-    ? onlineAssigned.map((a) => a.deductionId)
-    : offlineAssigned.map((a) => a.deductionId);
+  // Every deduction stays selectable: the same one may be assigned repeatedly, whether
+  // the earlier assignment is settled (kept as history) or still being collected
+  // alongside the new one. Each assignment carries its own balance.
+  const availableDeductions = allDeductionsQuery.data ?? [];
 
-  const availableDeductions = (allDeductionsQuery.data ?? []).filter(
-    (d) => !assignedIds.includes(d.id)
+  // Rows for a deduction held more than once look identical, so those show the date
+  // they were assigned to tell them apart. Single assignments stay uncluttered.
+  const repeatedDeductionIds = new Set(
+    onlineAssigned
+      .map((a) => a.deductionId)
+      .filter((id, i, all) => all.indexOf(id) !== i)
   );
 
   function resetAddForm() {
@@ -100,8 +111,8 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
     resetAddForm();
   }
 
-  function handleRemoveOffline(deductionId: string) {
-    onPendingChange?.(offlineAssigned.filter((d) => d.deductionId !== deductionId));
+  function handleRemoveOffline(index: number) {
+    onPendingChange?.(offlineAssigned.filter((_, i) => i !== index));
   }
 
   const addMutation = useMutation({
@@ -208,10 +219,10 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
               )}
 
               {/* Offline rows (add mode) */}
-              {!isOnline && offlineAssigned.map((d) => {
+              {!isOnline && offlineAssigned.map((d, i) => {
                 const effectiveAmount = d.amount ?? d.defaultAmount;
                 return (
-                  <tr key={d.deductionId} className="border-b last:border-b-0 hover:bg-gray-50">
+                  <tr key={i} className="border-b last:border-b-0 hover:bg-gray-50">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-medium text-gray-800">{d.name}</span>
@@ -229,7 +240,7 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                     <td className="px-2 py-2.5">
                       <button
                         type="button"
-                        onClick={() => handleRemoveOffline(d.deductionId)}
+                        onClick={() => handleRemoveOffline(i)}
                         className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -245,15 +256,20 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                 const totalBalance = ed.totalBalance ? toNum(ed.totalBalance) : null;
                 const paidAmount = toNum(ed.paidAmount);
                 const remaining = totalBalance !== null ? Math.max(0, totalBalance - paidAmount) : null;
-                const isSettled = totalBalance !== null && paidAmount >= totalBalance;
+                const settled = isSettled(ed);
                 const isEditingRow = editingId === ed.id;
 
                 return (
-                  <tr key={ed.id} className={`border-b last:border-b-0 ${isSettled ? "bg-amber-50" : "hover:bg-gray-50"}`}>
+                  <tr key={ed.id} className={`border-b last:border-b-0 ${settled ? "bg-amber-50" : "hover:bg-gray-50"}`}>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-medium text-gray-800">{ed.deduction.name}</span>
-                        {isSettled && (
+                        {repeatedDeductionIds.has(ed.deductionId) && (
+                          <span className="text-[10px] text-gray-400">
+                            assigned {new Date(ed.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                        {settled && (
                           <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Settled</span>
                         )}
                         {!totalBalance && (
@@ -297,8 +313,8 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums font-medium">
                       {remaining !== null ? (
-                        <span className={isSettled ? "text-amber-600" : "text-gray-800"}>
-                          {isSettled ? "₱0.00" : fmt(remaining)}
+                        <span className={settled ? "text-amber-600" : "text-gray-800"}>
+                          {settled ? "₱0.00" : fmt(remaining)}
                         </span>
                       ) : (
                         <span className="text-gray-400">—</span>
@@ -342,7 +358,7 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                               <Pencil className="h-3 w-3" />
                             </button>
                             {/* Reset paid amount — admin only */}
-                            {isAdmin && isSettled && (
+                            {isAdmin && settled && (
                               <button
                                 type="button"
                                 title="Reset paid amount"
@@ -394,7 +410,7 @@ export default function EmployeeDeductionsTable({ employeeId, pendingDeductions,
                         </option>
                       ))}
                       {availableDeductions.length === 0 && (
-                        <option disabled>All deductions assigned</option>
+                        <option disabled>No deductions defined</option>
                       )}
                     </select>
                   </td>

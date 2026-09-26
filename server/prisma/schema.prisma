@@ -558,6 +558,11 @@ model PayslipDeduction {
   label     String        // display name, e.g., "SSS Contribution"
   amount    Decimal       @db.Decimal(12, 2)
 
+  // The EmployeeDeduction assignment this line was charged from, when it came from
+  // the employee's deduction profile. Plain id (no FK) so payslip history survives
+  // the assignment being removed. Null for auto-computed and manually added lines.
+  employeeDeductionId String?
+
   payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
 
   @@index([payslipId])
@@ -638,7 +643,9 @@ model EmployeeDeduction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([employeeId, deductionId])
+  // Intentionally not unique on (employeeId, deductionId): the same deduction may be
+  // assigned repeatedly — settled ones are kept as payment history, and several may be
+  // collected side by side. Each row tracks its own balance and is charged separately.
   @@index([employeeId])
   @@map("employee_deductions")
 }

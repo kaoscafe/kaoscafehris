@@ -364,16 +364,23 @@ export async function cancelRun(id: string) {
         where: { payrollRunId: id },
         select: {
           employeeId: true,
-          deductions: { select: { label: true, amount: true } },
+          deductions: { select: { employeeDeductionId: true, label: true, amount: true } },
         },
       });
 
-      // Sum applied amounts per (employeeId, deduction label).
-      const appliedMap = new Map<string, number>();
+      // Sum applied amounts per assignment, falling back to (employeeId, label) for
+      // lines with no link — payslips generated before links existed, or added by hand.
+      const appliedById = new Map<string, number>();
+      const appliedByLabel = new Map<string, number>();
       for (const slip of payslipsWithDeductions) {
         for (const d of slip.deductions) {
-          const key = `${slip.employeeId}::${d.label}`;
-          appliedMap.set(key, round2((appliedMap.get(key) ?? 0) + toNum(d.amount)));
+          if (d.employeeDeductionId) {
+            const prev = appliedById.get(d.employeeDeductionId) ?? 0;
+            appliedById.set(d.employeeDeductionId, round2(prev + toNum(d.amount)));
+          } else {
+            const key = `${slip.employeeId}::${d.label}`;
+            appliedByLabel.set(key, round2((appliedByLabel.get(key) ?? 0) + toNum(d.amount)));
+          }
         }
       }
 
@@ -387,10 +394,19 @@ export async function cancelRun(id: string) {
       const trackedDeductions = await tx.employeeDeduction.findMany({
         where: { employeeId: { in: employeeIds }, totalBalance: { not: null } },
         include: { deduction: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
       });
+
+      // An employee can hold several assignments of the same deduction (settled ones
+      // are kept as history), so an unlinked line is reversed against the newest one only.
+      const labelFallbackClaimed = new Set<string>();
       for (const ed of trackedDeductions) {
         const key = `${ed.employeeId}::${ed.deduction.name}`;
-        const appliedAmount = appliedMap.get(key) ?? 0;
+        let appliedAmount = appliedById.get(ed.id) ?? 0;
+        if (appliedAmount === 0 && !labelFallbackClaimed.has(key)) {
+          appliedAmount = appliedByLabel.get(key) ?? 0;
+          if (appliedAmount > 0) labelFallbackClaimed.add(key);
+        }
         if (appliedAmount === 0) continue;
         const newPaidAmount = round2(Math.max(0, toNum(ed.paidAmount) - appliedAmount));
         await tx.employeeDeduction.update({
@@ -1379,11 +1395,31 @@ export async function processRun(id: string) {
 
       // Build deductions from this employee's assigned deductions profile.
       const empDeductions = empDeductionMap.get(emp.id) ?? [];
-      const deductionRows = empDeductions.map((ed) => ({
-        type: toDeductionType(ed.deduction.type),
-        label: ed.deduction.name,
-        amount: round2(toNum(ed.amount ?? ed.deduction.amount)),
-      }));
+      const deductionRows: Array<{
+        type: DeductionTypeKey;
+        label: string;
+        amount: number;
+        employeeDeductionId: string | null;
+      }> = empDeductions
+        .map((ed) => {
+          const perPayroll = round2(toNum(ed.amount ?? ed.deduction.amount));
+          // The final installment is capped at what is still owed, so a balance-tracked
+          // deduction collects exactly its total payable and never over-deducts.
+          // Recurring assignments (no total payable) are always charged in full.
+          const remaining =
+            ed.totalBalance !== null
+              ? round2(Math.max(0, toNum(ed.totalBalance) - toNum(ed.paidAmount)))
+              : null;
+          return {
+            type: toDeductionType(ed.deduction.type),
+            label: ed.deduction.name,
+            amount: remaining !== null ? Math.min(perPayroll, remaining) : perPayroll,
+            // Kept so payoff tracking can credit this exact assignment later — an
+            // employee may hold several assignments of the same deduction over time.
+            employeeDeductionId: ed.id,
+          };
+        })
+        .filter((row) => row.amount > 0);
 
       // Auto-compute late deduction: only minutes exceeding the configured late threshold are
       // charged, at the rate set in payroll.late_deduction_per_minute. Both must be configured
@@ -1395,6 +1431,7 @@ export async function processRun(id: string) {
           type: "LATE",
           label: `Late deduction (${deductibleMinutes} min × ₱${lateDeductionPerMinute}/min)`,
           amount: round2(deductibleMinutes * lateDeductionPerMinute),
+          employeeDeductionId: null,
         });
       }
 
@@ -1410,6 +1447,7 @@ export async function processRun(id: string) {
             type: "UNPAID_LEAVE",
             label: `Unpaid leave (${unpaidDays} day${unpaidDays !== 1 ? "s" : ""} × ₱${dailyRate}/day)`,
             amount: unpaidLeaveAmount,
+            employeeDeductionId: null,
           });
         }
       }
@@ -1540,18 +1578,58 @@ export async function completeRun(id: string, userId: string) {
 
   // Update paidAmount for balance-tracked deductions and collect fully-paid ones.
   const employeeIds = run.payslips.map((p) => p.employeeId);
+
+  // Credit each assignment with what its payslip line actually charged, rather than
+  // its configured per-payroll amount. Assignments the run did not deduct (already
+  // settled ones kept as history, or employees with no payslip line) stay untouched.
+  const chargedSlips = await prisma.payslip.findMany({
+    where: { payrollRunId: id },
+    select: {
+      employeeId: true,
+      deductions: { select: { employeeDeductionId: true, label: true, amount: true } },
+    },
+  });
+  const chargedById = new Map<string, number>();
+  const chargedByLabel = new Map<string, number>();
+  for (const slip of chargedSlips) {
+    for (const d of slip.deductions) {
+      if (d.employeeDeductionId) {
+        const prev = chargedById.get(d.employeeDeductionId) ?? 0;
+        chargedById.set(d.employeeDeductionId, round2(prev + toNum(d.amount)));
+      } else {
+        // Lines added by hand on the payslip carry no link — fall back to the name.
+        const key = `${slip.employeeId}::${d.label}`;
+        chargedByLabel.set(key, round2((chargedByLabel.get(key) ?? 0) + toNum(d.amount)));
+      }
+    }
+  }
+
   const trackedDeductions = await prisma.employeeDeduction.findMany({
     where: { employeeId: { in: employeeIds }, totalBalance: { not: null } },
     include: {
       employee: { select: { firstName: true, lastName: true } },
       deduction: { select: { name: true, amount: true } },
     },
+    orderBy: { createdAt: "desc" },
   });
 
+  // An employee can hold several assignments of the same deduction, so an unlinked
+  // line is credited to the newest unsettled one only, never to all of them.
+  const labelFallbackClaimed = new Set<string>();
   const fullyPaid: FullyPaidDeduction[] = [];
   for (const ed of trackedDeductions) {
-    const amountPerPayroll = round2(toNum(ed.amount ?? ed.deduction.amount));
-    const newPaidAmount = round2(toNum(ed.paidAmount) + amountPerPayroll);
+    // Settled assignments are kept for history and are never charged again.
+    if (toNum(ed.paidAmount) >= toNum(ed.totalBalance!)) continue;
+
+    const labelKey = `${ed.employeeId}::${ed.deduction.name}`;
+    let chargedAmount = chargedById.get(ed.id) ?? 0;
+    if (chargedAmount === 0 && !labelFallbackClaimed.has(labelKey)) {
+      chargedAmount = chargedByLabel.get(labelKey) ?? 0;
+      if (chargedAmount > 0) labelFallbackClaimed.add(labelKey);
+    }
+    if (chargedAmount === 0) continue;
+
+    const newPaidAmount = round2(toNum(ed.paidAmount) + chargedAmount);
     await prisma.employeeDeduction.update({
       where: { id: ed.id },
       data: { paidAmount: newPaidAmount },
@@ -1634,7 +1712,10 @@ export async function getPayslipById(
 export async function adjustPayslip(id: string, input: AdjustPayslipInput) {
   const payslip = await prisma.payslip.findUnique({
     where: { id },
-    include: { payrollRun: { select: { status: true } } },
+    include: {
+      payrollRun: { select: { status: true } },
+      deductions: { select: { type: true, label: true, amount: true, employeeDeductionId: true } },
+    },
   });
   if (!payslip) throw new AppError(404, "Payslip not found");
   if (payslip.payrollRun.status === "COMPLETED") {
@@ -1689,6 +1770,30 @@ export async function adjustPayslip(id: string, input: AdjustPayslipInput) {
   );
   const netPay = round2(grossPay - totalDeductions);
 
+  // Lines are replaced wholesale, so carry each one's link to the deduction assignment
+  // it came from over to its replacement; without this, finalizing the run would no
+  // longer credit the assignment's balance. An employee can hold several assignments of
+  // the same deduction at once, which produces identically labelled lines, so untouched
+  // lines (type + label + amount) claim their link first and only then do edited lines
+  // fall back to type + label. Each existing link is claimed by at most one new row.
+  const unclaimedLinks = payslip.deductions.filter((row) => row.employeeDeductionId !== null);
+  const deductionLinks: Array<string | null> = d.map(() => null);
+  const claim = (
+    rowIndex: number,
+    match: (link: (typeof unclaimedLinks)[number]) => boolean
+  ): void => {
+    if (deductionLinks[rowIndex] !== null) return;
+    const i = unclaimedLinks.findIndex(match);
+    if (i === -1) return;
+    deductionLinks[rowIndex] = unclaimedLinks.splice(i, 1)[0].employeeDeductionId;
+  };
+  d.forEach((row: PayslipDeductionInput, i: number) =>
+    claim(i, (l) => l.type === row.type && l.label === row.label && toNum(l.amount) === round2(row.amount))
+  );
+  d.forEach((row: PayslipDeductionInput, i: number) =>
+    claim(i, (l) => l.type === row.type && l.label === row.label)
+  );
+
   const updated = await prisma.$transaction(async (tx) => {
     await tx.payslipEarning.deleteMany({ where: { payslipId: id } });
     await tx.payslipDeduction.deleteMany({ where: { payslipId: id } });
@@ -1702,11 +1807,12 @@ export async function adjustPayslip(id: string, input: AdjustPayslipInput) {
       })),
     });
     await tx.payslipDeduction.createMany({
-      data: d.map((row: PayslipDeductionInput) => ({
+      data: d.map((row: PayslipDeductionInput, i: number) => ({
         payslipId: id,
         type: row.type,
         label: row.label,
         amount: round2(row.amount),
+        employeeDeductionId: deductionLinks[i],
       })),
     });
 

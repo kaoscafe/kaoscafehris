@@ -470,8 +470,8 @@ export default function PayrollRunDetailPage() {
           <DialogTitle>Deductions Fully Paid</DialogTitle>
           <DialogDescription>
             The following deductions have reached their total balance and were fully settled
-            in this payroll run. Remove them from the employee profiles so they won't be
-            included in the next cycle.
+            in this payroll run. They stay on the employee profiles as payment history and
+            are automatically excluded from the next cycle — no need to remove them.
           </DialogDescription>
         </DialogHeader>
 

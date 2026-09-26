@@ -24,10 +24,9 @@ export async function addEmployeeDeduction(
   const deduction = await prisma.deduction.findUnique({ where: { id: input.deductionId } });
   if (!deduction) throw new AppError(404, "Deduction not found");
 
-  const existing = await prisma.employeeDeduction.findUnique({
-    where: { employeeId_deductionId: { employeeId, deductionId: input.deductionId } },
-  });
-  if (existing) throw new AppError(409, "This deduction is already assigned to this employee");
+  // The same deduction may be assigned any number of times: settled ones stay on the
+  // record as history, and several may be collected side by side (e.g. two separate
+  // uniform issues). Each assignment tracks its own balance and is charged separately.
 
   return prisma.employeeDeduction.create({
     data: {
