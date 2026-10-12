@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Lock, Save, Shield, X } from "lucide-react";
+import { Check, KeyRound, Loader2, Lock, Save, Shield, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { PasswordInput } from "@/components/ui/password-input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { extractErrorMessage } from "@/lib/api";
+import { ChangePasswordDialog } from "@/features/portal/change-password-dialog";
 import {
   bulkUpdateSettings,
   listSettings,
@@ -283,6 +284,7 @@ function GeneralTab() {
   const query = useQuery({ queryKey: ["settings"], queryFn: () => listSettings() });
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [configRole, setConfigRole] = useState<RoleKey | null>(null);
+  const [pwOpen, setPwOpen] = useState(false);
 
   useEffect(() => {
     if (!query.data) return;
@@ -434,6 +436,31 @@ function GeneralTab() {
     <div className="space-y-4">
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-50">
+            <KeyRound className="h-5 w-5 text-purple-600" />
+          </span>
+          <div>
+            <h2 className="font-semibold text-gray-800">Account Security</h2>
+            <p className="text-xs text-gray-400">Manage your login credentials</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Password</p>
+            <p className="text-xs text-gray-400">Update your account password</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPwOpen(true)}
+            className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Change Password
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50">
             <Shield className="h-5 w-5 text-red-500" />
           </span>
@@ -487,6 +514,8 @@ function GeneralTab() {
           onClose={() => setConfigRole(null)}
         />
       )}
+
+      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
     </div>
   );
 }
