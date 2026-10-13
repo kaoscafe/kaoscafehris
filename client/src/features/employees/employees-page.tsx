@@ -151,6 +151,18 @@ export default function EmployeesPage() {
   const PAGE_SIZE = 10;
   const isEdit = !!detailEmployee;
 
+  // Managers may add and edit Employee-role accounts in their own branch; other employees
+  // are read-only for them apart from adding deductions and uploading documents.
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === "ADMIN";
+  const managerBranchId = currentUser?.role === "MANAGER" ? currentUser.employee?.branchId ?? null : null;
+  const canCreate = isAdmin || managerBranchId !== null;
+  const canEditEmployee = (e: Employee) =>
+    isAdmin || (managerBranchId !== null && e.branchId === managerBranchId && e.user.role === "EMPLOYEE");
+  const canEditForm = detailEmployee ? canEditEmployee(detailEmployee) : canCreate;
+  // Managers see and set pay rates only on employees they can edit (their branch).
+  const canViewRates = canEditForm;
+
   const resolver = useMemo(
     () => zodResolver(isEdit ? editSchema : createSchema),
     [isEdit]
@@ -206,7 +218,7 @@ export default function EmployeesPage() {
     } else {
       reset({
         email: "", password: "", role: "EMPLOYEE", employeeId: "",
-        branchId: "", firstName: "", middleName: "", lastName: "", dateOfBirth: "", position: "",
+        branchId: managerBranchId ?? "", firstName: "", middleName: "", lastName: "", dateOfBirth: "", position: "",
         employmentStatus: "FULL_TIME", dateHired: "",
         payType: "MONTHLY_FIXED",
         basicSalary: 0 as unknown as number,
@@ -215,7 +227,7 @@ export default function EmployeesPage() {
         sssNumber: "", philhealthNumber: "", pagibigNumber: "", tinNumber: "",
       });
     }
-  }, [isEditMode, detailEmployee, reset]);
+  }, [isEditMode, detailEmployee, reset, managerBranchId]);
 
   const formMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -307,9 +319,6 @@ export default function EmployeesPage() {
     onError: (err) => toast(extractErrorMessage(err), "error"),
   });
     const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
-    // Managers have read-only access to employees; they may only add deductions and upload documents.
-    const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
-    const canViewRates = isAdmin;
 
     const deleteMutation = useMutation({
       mutationFn: (id: string) => deleteEmployee(id),
@@ -428,16 +437,18 @@ export default function EmployeesPage() {
                   }
                 }}
               />
-              <button
-                onClick={() => { setDetailEmployee(null); setPendingDeductions([]); setPendingEarnings([]); setIsEditMode(true); }}
-                className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: BRAND }}
-                disabled={!hasBranches}
-                title={!hasBranches ? "Add at least one branch before creating employees" : ""}
-              >
-                + Add Employee
-              </button>
             </>
+          )}
+          {canCreate && (
+            <button
+              onClick={() => { setDetailEmployee(null); setPendingDeductions([]); setPendingEarnings([]); setIsEditMode(true); }}
+              className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: BRAND }}
+              disabled={!hasBranches}
+              title={!hasBranches ? "Add at least one branch before creating employees" : ""}
+            >
+              + Add Employee
+            </button>
           )}
         </div>
       </div>
@@ -589,8 +600,8 @@ export default function EmployeesPage() {
                       setIsEditMode(true);
                     }}
                   >
-                    {isAdmin ? <Pencil className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    {isAdmin ? "Edit" : "View"}
+                    {canEditEmployee(e) ? <Pencil className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {canEditEmployee(e) ? "Edit" : "View"}
                   </button>
                   {isAdmin && (
                     <button
@@ -658,19 +669,19 @@ export default function EmployeesPage() {
         className="max-w-2xl"
       >
         <DialogHeader>
-          <DialogTitle>{isEdit ? (isAdmin ? "Edit Employee" : "Employee Details") : "Add New Employee"}</DialogTitle>
+          <DialogTitle>{isEdit ? (canEditForm ? "Edit Employee" : "Employee Details") : "Add New Employee"}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? (isAdmin ? "Update profile and account details." : "View profile and account details. You may add deductions and upload documents.")
+              ? (canEditForm ? "Update profile and account details." : "View profile and account details. You may add deductions and upload documents.")
               : "Create the user login and employee profile."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((v) => { if (!isAdmin) return; formMutation.mutate(v); })} noValidate>
+        <form onSubmit={handleSubmit((v) => { if (!canEditForm) return; formMutation.mutate(v); })} noValidate>
           <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-6 mt-4">
 
-                {/* Employee detail fields — read-only for managers */}
-                <fieldset disabled={!isAdmin} className="space-y-6 m-0 p-0 border-0 min-w-0">
+                {/* Employee detail fields — read-only for managers on existing employees */}
+                <fieldset disabled={!canEditForm} className="space-y-6 m-0 p-0 border-0 min-w-0">
 
                 {/* ACCOUNT */}
                 <div>
@@ -685,8 +696,12 @@ export default function EmployeesPage() {
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">System Role *</label>
                       <select {...register("role")} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white">
                         <option value="EMPLOYEE">Employee</option>
-                        <option value="MANAGER">Branch Manager</option>
-                        <option value="ADMIN">Admin</option>
+                        {(isAdmin || !canEditForm) && (
+                          <>
+                            <option value="MANAGER">Branch Manager</option>
+                            <option value="ADMIN">Admin</option>
+                          </>
+                        )}
                       </select>
                       {errors.role && <p className="text-xs text-red-500 mt-1">{errors.role.message}</p>}
                     </div>
@@ -751,9 +766,12 @@ export default function EmployeesPage() {
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Branch *</label>
                       <select {...register("branchId")} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white">
                         <option value="">Select branch...</option>
-                        {branchesQuery.data?.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
+                        {/* Managers can only add to / keep employees in their own branch */}
+                        {branchesQuery.data
+                          ?.filter((b) => isAdmin || !canEditForm || b.id === managerBranchId)
+                          .map((b) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                          ))}
                       </select>
                       {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
                     </div>
@@ -866,9 +884,9 @@ export default function EmployeesPage() {
               onClick={() => { setIsEditMode(false); setDetailEmployee(null); }}
               className="px-4 py-2 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
             >
-              {isAdmin ? "Cancel" : "Close"}
+              {canEditForm ? "Cancel" : "Close"}
             </button>
-            {isAdmin && (
+            {canEditForm && (
               <button
                 type="submit"
                 disabled={formMutation.isPending}

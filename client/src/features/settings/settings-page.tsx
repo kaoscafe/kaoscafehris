@@ -207,7 +207,7 @@ const ROLE_SECTIONS: Record<RoleKey, PermSection[]> = {
     {
       label: "People & Branches",
       modules: [
-        { name: "Employees", description: "Cannot add, transfer, or remove employees", perms: { view: "on", create: "locked", edit: "locked", delete: "locked" } },
+        { name: "Employees", description: "Can add and edit employees in their own branch (Employee role only); cannot transfer or remove employees", perms: { view: "on", create: "on", edit: "on", delete: "locked" } },
         { name: "Branches", description: "Cannot create or delete branches", perms: { view: "on", create: "locked", edit: "on", delete: "locked" } },
       ],
     },
@@ -555,7 +555,9 @@ function RoleConfigDialog({ role, onClose }: RoleConfigDialogProps) {
           if (!savedModule) return { ...mod, perms: { ...mod.perms } };
           const mergedPerms = { ...mod.perms } as Record<PermKey, PermState>;
           for (const k of ["view", "create", "edit", "delete"] as PermKey[]) {
-            if (mergedPerms[k] !== "locked" && savedModule[k] !== undefined) {
+            // Ignore a saved "locked" for a cell that is no longer locked by default
+            // (e.g. Employees → Create for branch managers, saved before it was opened up).
+            if (mergedPerms[k] !== "locked" && savedModule[k] !== undefined && savedModule[k] !== "locked") {
               mergedPerms[k] = savedModule[k] as PermState;
             }
           }

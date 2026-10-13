@@ -43,14 +43,16 @@ router.use(authenticate);
 router.get("/", authorize("ADMIN", "MANAGER"), employeeController.list);
 router.get("/:id", authorize("ADMIN", "MANAGER"), employeeController.getById);
 
+// Managers may add and edit EMPLOYEE-role accounts in their own branch — enforced in the controller.
+router.post("/", authorize("ADMIN", "MANAGER"), validate(createEmployeeSchema), employeeController.create);
+router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateEmployeeSchema), employeeController.update);
+
 // Admin-only management routes.
-// Managers have read-only access to employees (see GET routes above) and may
+// Managers otherwise have read-only access to employees (see GET routes above) and may
 // only add deductions and upload documents — see the exceptions below.
 router.get("/import/template", authorize("ADMIN"), employeeController.csvTemplate);
-router.post("/", authorize("ADMIN"), validate(createEmployeeSchema), employeeController.create);
 router.post("/import/preview", authorize("ADMIN"), csvUpload.single("file"), employeeController.previewImportCsv);
 router.post("/import", authorize("ADMIN"), csvUpload.single("file"), employeeController.importCsv);
-router.put("/:id", authorize("ADMIN"), validate(updateEmployeeSchema), employeeController.update);
 // DELETE now performs permanent (hard) delete — admin only
 router.delete("/:id", authorize("ADMIN"), employeeController.remove);
 

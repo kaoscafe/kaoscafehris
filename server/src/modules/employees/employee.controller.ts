@@ -9,14 +9,37 @@ import * as eeService from "./employee-earnings.service.js";
 import * as oteService from "./employee-one-time-earnings.service.js";
 import * as docService from "./employee-document.service.js";
 import prisma from "../../config/db.js";
+import { AppError } from "../../middleware/error-handler.js";
 
 type IdParams = { id: string };
 
-function sanitizeEmployeeForRole<T extends { basicSalary?: unknown; hourlyRate?: unknown }>(
+// The branch a manager manages (from their own employee profile); null for non-managers.
+async function getManagerBranchId(user?: { role: string; userId: string }) {
+  if (user?.role !== "MANAGER") return null;
+  const manager = await prisma.employee.findUnique({
+    where: { userId: user.userId },
+    select: { branchId: true },
+  });
+  return manager?.branchId ?? null;
+}
+
+// Managers may edit (and see the pay rate of) Employee-role accounts in their own branch.
+// Other managers/admins — including the manager themselves — stay read-only for them.
+function managerCanEdit(
+  employee: { branchId: string; user: { role: string } },
+  managerBranchId: string | null
+) {
+  return managerBranchId !== null && employee.branchId === managerBranchId && employee.user.role === "EMPLOYEE";
+}
+
+function sanitizeEmployeeForRole<
+  T extends { basicSalary?: unknown; hourlyRate?: unknown; branchId: string; user: { role: string } }
+>(
   employee: T,
-  role?: string
+  role?: string,
+  managerBranchId: string | null = null
 ): T {
-  if (role === "MANAGER") {
+  if (role === "MANAGER" && !managerCanEdit(employee, managerBranchId)) {
     return {
       ...employee,
       basicSalary: null,
@@ -29,8 +52,9 @@ function sanitizeEmployeeForRole<T extends { basicSalary?: unknown; hourlyRate?:
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = listEmployeeQuerySchema.parse(req.query);
+    const managerBranchId = await getManagerBranchId(req.user);
     const data = (await employeeService.listEmployees(query)).map((employee) =>
-      sanitizeEmployeeForRole(employee, req.user?.role)
+      sanitizeEmployeeForRole(employee, req.user?.role, managerBranchId)
     );
     res.json({ data });
   } catch (err) {
@@ -44,8 +68,9 @@ export async function getById(
   next: NextFunction
 ) {
   try {
+    const managerBranchId = await getManagerBranchId(req.user);
     const data = await employeeService.getEmployeeById(req.params.id);
-    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role) });
+    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role, managerBranchId) });
   } catch (err) {
     next(err);
   }
@@ -53,8 +78,18 @@ export async function getById(
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
+    // Managers may only add regular employee accounts to their own branch.
+    const managerBranchId = await getManagerBranchId(req.user);
+    if (req.user?.role === "MANAGER") {
+      if (req.body.role !== "EMPLOYEE") {
+        throw new AppError(403, "Managers can only create accounts with the Employee role");
+      }
+      if (managerBranchId === null || req.body.branchId !== managerBranchId) {
+        throw new AppError(403, "Managers can only add employees to their own branch");
+      }
+    }
     const data = await employeeService.createEmployee(req.body);
-    res.status(201).json({ data });
+    res.status(201).json({ data: sanitizeEmployeeForRole(data, req.user?.role, managerBranchId) });
   } catch (err) {
     next(err);
   }
@@ -66,8 +101,27 @@ export async function update(
   next: NextFunction
 ) {
   try {
+    // Managers may edit Employee-role accounts in their own branch, but can't change
+    // the role or move the employee to another branch.
+    const managerBranchId = await getManagerBranchId(req.user);
+    if (req.user?.role === "MANAGER") {
+      const existing = await prisma.employee.findUnique({
+        where: { id: req.params.id },
+        select: { branchId: true, user: { select: { role: true } } },
+      });
+      if (!existing) throw new AppError(404, "Employee not found");
+      if (!managerCanEdit(existing, managerBranchId)) {
+        throw new AppError(403, "Managers can only edit employees in their own branch");
+      }
+      if (req.body.role !== undefined && req.body.role !== "EMPLOYEE") {
+        throw new AppError(403, "Managers can only assign the Employee role");
+      }
+      if (req.body.branchId !== undefined && req.body.branchId !== managerBranchId) {
+        throw new AppError(403, "Managers can't move employees to another branch");
+      }
+    }
     const data = await employeeService.updateEmployee(req.params.id, req.body);
-    res.json({ data });
+    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role, managerBranchId) });
   } catch (err) {
     next(err);
   }
