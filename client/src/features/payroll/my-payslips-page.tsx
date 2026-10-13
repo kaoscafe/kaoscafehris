@@ -51,7 +51,7 @@ export default function MyPayslipsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 md:px-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">My payslips</h1>
+        <h1 className="font-heading text-3xl font-bold text-gray-900">Payslips</h1>
         <p className="text-sm text-muted-foreground">
           Released payslips for every payroll period you've been included in.
         </p>
@@ -143,7 +143,7 @@ export default function MyPayslipsPage() {
 
       {/* Payslip preview panel */}
       {previewId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
           <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
             <button
               onClick={() => setPreviewId(null)}

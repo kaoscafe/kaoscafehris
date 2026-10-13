@@ -270,7 +270,7 @@ const ROLE_SECTIONS: Record<RoleKey, PermSection[]> = {
 export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-800">Settings</h1>
+      <h1 className="mb-6 font-heading text-3xl font-bold text-gray-900">Settings</h1>
       <GeneralTab />
     </div>
   );
@@ -606,7 +606,7 @@ function RoleConfigDialog({ role, onClose }: RoleConfigDialogProps) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-40 flex">
+    <div className="fixed inset-0 z-[100] flex">
       {/* Backdrop */}
       <div className="flex-1 bg-black/30" onClick={onClose} />
 

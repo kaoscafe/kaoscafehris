@@ -271,7 +271,7 @@ export default function BranchesPage() {
 
       {/* Slide Panel */}
       {panelOpen && (
-        <div className="fixed inset-0 z-40 flex">
+        <div className="fixed inset-0 z-[100] flex">
           <div className="flex-1 bg-black/30" onClick={closePanel} />
           <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col overflow-hidden">
             {/* Panel header */}

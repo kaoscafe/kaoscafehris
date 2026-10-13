@@ -424,7 +424,7 @@ const apiStatus = (statusFilter === "LATE" ? "LATE" : statusFilter === "ABSENT" 
 
       {/* Delete confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="font-heading text-lg font-bold text-gray-900">Delete Attendance Record?</h3>
             <p className="mt-2 text-sm text-gray-500">

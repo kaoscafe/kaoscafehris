@@ -93,7 +93,7 @@ export default function DeductionsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-800">Deductions Management</h1>
+      <h1 className="mb-6 font-heading text-3xl font-bold text-gray-900">Deductions Management</h1>
 
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         {/* Header */}

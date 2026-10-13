@@ -94,7 +94,7 @@ export default function LoginPage() {
             placeholder="ID Number"
             autoComplete="username"
             disabled={busy}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
+            className="h-12 w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
             {...register("employeeId")}
           />
@@ -102,7 +102,7 @@ export default function LoginPage() {
             placeholder="Enter Password"
             autoComplete="current-password"
             disabled={busy}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60 border-none"
+            className="h-12 w-full rounded-full bg-white/90 px-5 pr-12 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60 border-none"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
             {...register("password")}
           />

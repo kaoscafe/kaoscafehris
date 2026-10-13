@@ -28,7 +28,7 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
       <button
         type="button"
         aria-label="Close dialog"

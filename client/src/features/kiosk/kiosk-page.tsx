@@ -101,7 +101,7 @@ function IdEntryScreen({
             value={value}
             onChange={(e) => setValue(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && value.trim() && password.trim() && onLookup(value.trim(), password.trim())}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
+            className="h-12 w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
           />
           <PasswordInput
@@ -109,7 +109,7 @@ function IdEntryScreen({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && value.trim() && password.trim() && onLookup(value.trim(), password.trim())}
-            className="w-full rounded-full bg-white/90 px-5 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60 border-none"
+            className="h-12 w-full rounded-full bg-white/90 px-5 pr-12 py-3.5 text-sm text-gray-700 placeholder-gray-400 outline-none transition focus:ring-2 disabled:opacity-60 border-none"
             style={{ "--tw-ring-color": "rgba(255,255,255,0.5)" } as React.CSSProperties}
           />
           <button
