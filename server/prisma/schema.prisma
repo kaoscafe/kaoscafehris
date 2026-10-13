@@ -155,10 +155,12 @@ model Branch {
   address        String
   city           String
   phone          String?
-  branchManager  String?
+  branchManager  String?  // legacy free-text manager name, kept only until linked via managerId
+  managerId      String?  // Branch Manager account (employee profile) — may add/edit this branch's employees
   operatingHours String?
   isActive       Boolean @default(true)
 
+  manager                Employee? @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
   employees              Employee[]
   shifts                 Shift[]
   attendanceRecords      Attendance[]
@@ -168,6 +170,7 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([managerId])
   @@map("branches")
 }
 
@@ -234,6 +237,7 @@ model Employee {
   employeeEarnings          EmployeeEarning[]
   employeeOneTimeEarnings  EmployeeOneTimeEarning[]
   documents           EmployeeDocument[]
+  managedBranches     Branch[]         @relation("BranchManager") // branches this manager was assigned to
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt

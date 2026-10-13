@@ -9,6 +9,7 @@ import { extractErrorMessage } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import Pagination from "@/components/ui/pagination";
 import { listEmployees } from "@/features/employees/employees.api";
+import { useAuthStore } from "@/features/auth/auth.store";
 import {
   listBranches,
   createBranch,
@@ -54,7 +55,7 @@ const schema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   address: z.string().trim().min(3, "Address is required"),
   city: z.string().trim().min(2, "City is required"),
-  branchManager: z.string().trim().optional(),
+  managerId: z.string().optional(), // "" = no manager
   operatingHoursOpen: z.string().optional(),
   operatingHoursClose: z.string().optional(),
   phone: z.string().trim().optional(),
@@ -87,18 +88,27 @@ export default function BranchesPage() {
   const isEdit = !!panelBranch;
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
+  // Only admins decide who manages a branch — it controls which employees a manager can edit.
+  const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
 
   const query = useQuery({
     queryKey: ["branches", {}],
     queryFn: () => listBranches(),
   });
 
-  const employeesQuery = useQuery({
-    queryKey: ["employees", {}],
-    queryFn: () => listEmployees(),
+  const managersQuery = useQuery({
+    queryKey: ["employees", { role: "MANAGER" }],
+    queryFn: () => listEmployees({ role: "MANAGER" }),
     enabled: panelOpen,
-    select: (data) => data.filter((e) => e.position !== "Administrator"),
+    select: (data) => data.filter((e) => e.employmentStatus !== "TERMINATED"),
   });
+  // Keep the currently linked manager selectable even if they no longer appear in the list.
+  const managerOptions = [
+    ...(panelBranch?.manager && !managersQuery.data?.some((m) => m.id === panelBranch.manager!.id)
+      ? [{ id: panelBranch.manager.id, label: `${panelBranch.manager.firstName} ${panelBranch.manager.lastName}` }]
+      : []),
+    ...(managersQuery.data ?? []).map((m) => ({ id: m.id, label: `${m.firstName} ${m.lastName} · ${m.branch.name}` })),
+  ];
 
   const branches = query.data ?? [];
   const totalBranches = branches.length;
@@ -115,12 +125,12 @@ export default function BranchesPage() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", address: "", city: "", branchManager: "", operatingHoursOpen: "", operatingHoursClose: "", phone: "", isActive: "true" },
+    defaultValues: { name: "", address: "", city: "", managerId: "", operatingHoursOpen: "", operatingHoursClose: "", phone: "", isActive: "true" },
   });
 
   function openCreate() {
     setPanelBranch(null);
-    reset({ name: "", address: "", city: "", branchManager: "", operatingHoursOpen: "", operatingHoursClose: "", phone: "", isActive: "true" });
+    reset({ name: "", address: "", city: "", managerId: "", operatingHoursOpen: "", operatingHoursClose: "", phone: "", isActive: "true" });
     setPanelOpen(true);
   }
 
@@ -131,7 +141,7 @@ export default function BranchesPage() {
       name: branch.name,
       address: branch.address,
       city: branch.city,
-      branchManager: branch.branchManager ?? "",
+      managerId: branch.managerId ?? "",
       operatingHoursOpen: open,
       operatingHoursClose: close,
       phone: branch.phone ?? "",
@@ -151,11 +161,14 @@ export default function BranchesPage() {
         name: values.name,
         address: values.address,
         city: values.city,
-        branchManager: values.branchManager || undefined,
         operatingHours: formatOperatingHours(values.operatingHoursOpen ?? "", values.operatingHoursClose ?? ""),
         phone: values.phone || undefined,
         isActive: values.isActive === "true",
       };
+      // Send the manager only when an admin changed it.
+      if (isAdmin && (values.managerId ?? "") !== (panelBranch?.managerId ?? "")) {
+        payload.managerId = values.managerId || null;
+      }
       return isEdit ? updateBranch(panelBranch!.id, payload) : createBranch(payload);
     },
     onSuccess: () => {
@@ -244,7 +257,24 @@ export default function BranchesPage() {
                     {[b.address, b.city].filter(Boolean).join(", ")}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-gray-600">{b.branchManager ?? <span className="text-gray-300">—</span>}</td>
+                <td className="px-5 py-4 text-gray-600">
+                  {b.manager ? (
+                    `${b.manager.firstName} ${b.manager.lastName}`
+                  ) : b.branchManager ? (
+                    <span className="flex flex-col items-start gap-1">
+                      {b.branchManager}
+                      <span
+                        className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{ backgroundColor: "#FEF3C7", color: "#B45309" }}
+                        title="Not linked to a Branch Manager account — edit the branch and pick the manager."
+                      >
+                        Not linked
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-4 tabular-nums text-gray-700">
                   {b._count?.employees ?? 0}
                 </td>
@@ -354,16 +384,28 @@ export default function BranchesPage() {
                         Branch Manager
                       </label>
                       <select
-                        {...register("branchManager")}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white"
+                        {...register("managerId")}
+                        disabled={!isAdmin}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white disabled:bg-gray-50 disabled:text-gray-500"
                       >
-                        <option value="">— Select manager —</option>
-                        {(employeesQuery.data ?? []).map((e) => (
-                          <option key={e.id} value={`${e.firstName} ${e.lastName}`}>
-                            {e.firstName} {e.lastName}
+                        <option value="">— No manager —</option>
+                        {managerOptions.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.label}
                           </option>
                         ))}
                       </select>
+                      {!isAdmin ? (
+                        <p className="text-xs text-gray-400 mt-1">Only admins can change the branch manager.</p>
+                      ) : panelBranch && !panelBranch.managerId && panelBranch.branchManager ? (
+                        <p className="text-xs text-amber-700 mt-1">
+                          Previously entered "{panelBranch.branchManager}" isn't linked to a Branch Manager account — pick the manager above.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Only accounts with the Branch Manager role are listed. The manager can add and edit this branch's employees.
+                        </p>
+                      )}
                     </div>
 
                     <div>

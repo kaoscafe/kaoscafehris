@@ -43,7 +43,7 @@ router.use(authenticate);
 router.get("/", authorize("ADMIN", "MANAGER"), employeeController.list);
 router.get("/:id", authorize("ADMIN", "MANAGER"), employeeController.getById);
 
-// Managers may add and edit EMPLOYEE-role accounts in their own branch — enforced in the controller.
+// Managers may add and edit EMPLOYEE-role accounts in the branches they manage — enforced in the controller.
 router.post("/", authorize("ADMIN", "MANAGER"), validate(createEmployeeSchema), employeeController.create);
 router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateEmployeeSchema), employeeController.update);
 

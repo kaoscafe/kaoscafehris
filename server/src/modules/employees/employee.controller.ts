@@ -13,23 +13,25 @@ import { AppError } from "../../middleware/error-handler.js";
 
 type IdParams = { id: string };
 
-// The branch a manager manages (from their own employee profile); null for non-managers.
-async function getManagerBranchId(user?: { role: string; userId: string }) {
-  if (user?.role !== "MANAGER") return null;
+// Branches a manager manages: their own profile's branch plus every branch an admin
+// assigned them to as Branch Manager. Empty for non-managers.
+async function getManagedBranchIds(user?: { role: string; userId: string }): Promise<string[]> {
+  if (user?.role !== "MANAGER") return [];
   const manager = await prisma.employee.findUnique({
     where: { userId: user.userId },
-    select: { branchId: true },
+    select: { branchId: true, managedBranches: { select: { id: true } } },
   });
-  return manager?.branchId ?? null;
+  if (!manager) return [];
+  return [manager.branchId, ...manager.managedBranches.map((b) => b.id)];
 }
 
-// Managers may edit (and see the pay rate of) Employee-role accounts in their own branch.
-// Other managers/admins — including the manager themselves — stay read-only for them.
+// Managers may edit (and see the pay rate of) Employee-role accounts in the branches they
+// manage. Other managers/admins — including the manager themselves — stay read-only for them.
 function managerCanEdit(
   employee: { branchId: string; user: { role: string } },
-  managerBranchId: string | null
+  managedBranchIds: string[]
 ) {
-  return managerBranchId !== null && employee.branchId === managerBranchId && employee.user.role === "EMPLOYEE";
+  return managedBranchIds.includes(employee.branchId) && employee.user.role === "EMPLOYEE";
 }
 
 function sanitizeEmployeeForRole<
@@ -37,9 +39,9 @@ function sanitizeEmployeeForRole<
 >(
   employee: T,
   role?: string,
-  managerBranchId: string | null = null
+  managedBranchIds: string[] = []
 ): T {
-  if (role === "MANAGER" && !managerCanEdit(employee, managerBranchId)) {
+  if (role === "MANAGER" && !managerCanEdit(employee, managedBranchIds)) {
     return {
       ...employee,
       basicSalary: null,
@@ -52,9 +54,9 @@ function sanitizeEmployeeForRole<
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const query = listEmployeeQuerySchema.parse(req.query);
-    const managerBranchId = await getManagerBranchId(req.user);
+    const managedBranchIds = await getManagedBranchIds(req.user);
     const data = (await employeeService.listEmployees(query)).map((employee) =>
-      sanitizeEmployeeForRole(employee, req.user?.role, managerBranchId)
+      sanitizeEmployeeForRole(employee, req.user?.role, managedBranchIds)
     );
     res.json({ data });
   } catch (err) {
@@ -68,9 +70,9 @@ export async function getById(
   next: NextFunction
 ) {
   try {
-    const managerBranchId = await getManagerBranchId(req.user);
+    const managedBranchIds = await getManagedBranchIds(req.user);
     const data = await employeeService.getEmployeeById(req.params.id);
-    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role, managerBranchId) });
+    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role, managedBranchIds) });
   } catch (err) {
     next(err);
   }
@@ -78,18 +80,18 @@ export async function getById(
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
-    // Managers may only add regular employee accounts to their own branch.
-    const managerBranchId = await getManagerBranchId(req.user);
+    // Managers may only add regular employee accounts to branches they manage.
+    const managedBranchIds = await getManagedBranchIds(req.user);
     if (req.user?.role === "MANAGER") {
       if (req.body.role !== "EMPLOYEE") {
         throw new AppError(403, "Managers can only create accounts with the Employee role");
       }
-      if (managerBranchId === null || req.body.branchId !== managerBranchId) {
-        throw new AppError(403, "Managers can only add employees to their own branch");
+      if (!managedBranchIds.includes(req.body.branchId)) {
+        throw new AppError(403, "Managers can only add employees to branches they manage");
       }
     }
     const data = await employeeService.createEmployee(req.body);
-    res.status(201).json({ data: sanitizeEmployeeForRole(data, req.user?.role, managerBranchId) });
+    res.status(201).json({ data: sanitizeEmployeeForRole(data, req.user?.role, managedBranchIds) });
   } catch (err) {
     next(err);
   }
@@ -101,27 +103,27 @@ export async function update(
   next: NextFunction
 ) {
   try {
-    // Managers may edit Employee-role accounts in their own branch, but can't change
-    // the role or move the employee to another branch.
-    const managerBranchId = await getManagerBranchId(req.user);
+    // Managers may edit Employee-role accounts in branches they manage, but can't change
+    // the role or move the employee to a branch they don't manage.
+    const managedBranchIds = await getManagedBranchIds(req.user);
     if (req.user?.role === "MANAGER") {
       const existing = await prisma.employee.findUnique({
         where: { id: req.params.id },
         select: { branchId: true, user: { select: { role: true } } },
       });
       if (!existing) throw new AppError(404, "Employee not found");
-      if (!managerCanEdit(existing, managerBranchId)) {
-        throw new AppError(403, "Managers can only edit employees in their own branch");
+      if (!managerCanEdit(existing, managedBranchIds)) {
+        throw new AppError(403, "Managers can only edit employees in branches they manage");
       }
       if (req.body.role !== undefined && req.body.role !== "EMPLOYEE") {
         throw new AppError(403, "Managers can only assign the Employee role");
       }
-      if (req.body.branchId !== undefined && req.body.branchId !== managerBranchId) {
-        throw new AppError(403, "Managers can't move employees to another branch");
+      if (req.body.branchId !== undefined && !managedBranchIds.includes(req.body.branchId)) {
+        throw new AppError(403, "Managers can only move employees between branches they manage");
       }
     }
     const data = await employeeService.updateEmployee(req.params.id, req.body);
-    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role, managerBranchId) });
+    res.json({ data: sanitizeEmployeeForRole(data, req.user?.role, managedBranchIds) });
   } catch (err) {
     next(err);
   }

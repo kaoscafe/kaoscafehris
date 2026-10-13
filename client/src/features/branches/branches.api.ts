@@ -6,7 +6,9 @@ export interface Branch {
   address: string;
   city: string;
   phone: string | null;
-  branchManager: string | null;
+  branchManager: string | null; // legacy free-text name, set only while no manager account is linked
+  managerId: string | null;
+  manager: { id: string; firstName: string; lastName: string } | null;
   operatingHours: string | null;
   isActive: boolean;
   createdAt: string;
@@ -19,7 +21,7 @@ export interface BranchInput {
   address: string;
   city: string;
   phone?: string;
-  branchManager?: string;
+  managerId?: string | null; // admin only
   operatingHours?: string;
   isActive?: boolean;
 }

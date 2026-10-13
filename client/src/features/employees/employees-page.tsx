@@ -151,17 +151,31 @@ export default function EmployeesPage() {
   const PAGE_SIZE = 10;
   const isEdit = !!detailEmployee;
 
-  // Managers may add and edit Employee-role accounts in their own branch; other employees
-  // are read-only for them apart from adding deductions and uploading documents.
+  const branchesQuery = useQuery({
+    queryKey: ["branches", { active: true }],
+    queryFn: () => listBranches({ isActive: true }),
+  });
+
+  // Managers may add and edit Employee-role accounts in the branches they manage — their own
+  // profile's branch plus any branch an admin assigned them to. Other employees are read-only
+  // for them apart from adding deductions and uploading documents.
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === "ADMIN";
-  const managerBranchId = currentUser?.role === "MANAGER" ? currentUser.employee?.branchId ?? null : null;
-  const canCreate = isAdmin || managerBranchId !== null;
+  const managerProfile = currentUser?.role === "MANAGER" ? currentUser.employee : null;
+  const managedBranchIds = managerProfile
+    ? [
+        managerProfile.branchId,
+        ...(branchesQuery.data ?? []).filter((b) => b.managerId === managerProfile.id).map((b) => b.id),
+      ]
+    : [];
+  const canCreate = isAdmin || managedBranchIds.length > 0;
   const canEditEmployee = (e: Employee) =>
-    isAdmin || (managerBranchId !== null && e.branchId === managerBranchId && e.user.role === "EMPLOYEE");
+    isAdmin || (managedBranchIds.includes(e.branchId) && e.user.role === "EMPLOYEE");
   const canEditForm = detailEmployee ? canEditEmployee(detailEmployee) : canCreate;
-  // Managers see and set pay rates only on employees they can edit (their branch).
+  // Managers see and set pay rates only on employees they can edit (their branches).
   const canViewRates = canEditForm;
+  // Preselect the branch for a new employee when a manager has just one branch.
+  const defaultBranchId = new Set(managedBranchIds).size === 1 ? managedBranchIds[0] : "";
 
   const resolver = useMemo(
     () => zodResolver(isEdit ? editSchema : createSchema),
@@ -218,7 +232,7 @@ export default function EmployeesPage() {
     } else {
       reset({
         email: "", password: "", role: "EMPLOYEE", employeeId: "",
-        branchId: managerBranchId ?? "", firstName: "", middleName: "", lastName: "", dateOfBirth: "", position: "",
+        branchId: defaultBranchId, firstName: "", middleName: "", lastName: "", dateOfBirth: "", position: "",
         employmentStatus: "FULL_TIME", dateHired: "",
         payType: "MONTHLY_FIXED",
         basicSalary: 0 as unknown as number,
@@ -227,7 +241,7 @@ export default function EmployeesPage() {
         sssNumber: "", philhealthNumber: "", pagibigNumber: "", tinNumber: "",
       });
     }
-  }, [isEditMode, detailEmployee, reset, managerBranchId]);
+  }, [isEditMode, detailEmployee, reset, defaultBranchId]);
 
   const formMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -334,11 +348,6 @@ export default function EmployeesPage() {
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const branchesQuery = useQuery({
-    queryKey: ["branches", { active: true }],
-    queryFn: () => listBranches({ isActive: true }),
-  });
 
   const employeesQuery = useQuery({
     queryKey: ["employees", search, branchId, role],
@@ -766,9 +775,9 @@ export default function EmployeesPage() {
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Branch *</label>
                       <select {...register("branchId")} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-red-400 bg-white">
                         <option value="">Select branch...</option>
-                        {/* Managers can only add to / keep employees in their own branch */}
+                        {/* Managers can only add to / move employees between branches they manage */}
                         {branchesQuery.data
-                          ?.filter((b) => isAdmin || !canEditForm || b.id === managerBranchId)
+                          ?.filter((b) => isAdmin || !canEditForm || managedBranchIds.includes(b.id))
                           .map((b) => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                           ))}

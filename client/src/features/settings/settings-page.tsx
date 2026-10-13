@@ -207,7 +207,7 @@ const ROLE_SECTIONS: Record<RoleKey, PermSection[]> = {
     {
       label: "People & Branches",
       modules: [
-        { name: "Employees", description: "Can add and edit employees in their own branch (Employee role only); cannot transfer or remove employees", perms: { view: "on", create: "on", edit: "on", delete: "locked" } },
+        { name: "Employees", description: "Can add and edit employees in the branches they manage (Employee role only); cannot remove employees", perms: { view: "on", create: "on", edit: "on", delete: "locked" } },
         { name: "Branches", description: "Cannot create or delete branches", perms: { view: "on", create: "locked", edit: "on", delete: "locked" } },
       ],
     },

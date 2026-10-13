@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { listBranchQuerySchema } from "./branch.schema.js";
 import * as branchService from "./branch.service.js";
+import { AppError } from "../../middleware/error-handler.js";
 
 type IdParams = { id: string };
 
@@ -42,6 +43,11 @@ export async function update(
   next: NextFunction
 ) {
   try {
+    // Managers may edit branch details, but only admins decide who manages a branch —
+    // it controls which employees a manager can add and edit.
+    if (req.user?.role !== "ADMIN" && req.body.managerId !== undefined) {
+      throw new AppError(403, "Only admins can change a branch's manager");
+    }
     const branch = await branchService.updateBranch(req.params.id, req.body);
     res.json({ data: branch });
   } catch (err) {

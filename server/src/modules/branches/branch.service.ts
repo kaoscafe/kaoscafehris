@@ -12,7 +12,21 @@ const branchWithCounts = {
   _count: {
     select: { employees: true },
   },
+  manager: { select: { id: true, firstName: true, lastName: true } },
 } as const;
+
+// The assigned manager must be a Branch Manager account — it decides which
+// branches' employees that manager may add and edit.
+async function assertBranchManager(managerId: string | null | undefined) {
+  if (!managerId) return;
+  const manager = await prisma.employee.findUnique({
+    where: { id: managerId },
+    select: { user: { select: { role: true } } },
+  });
+  if (!manager || manager.user.role !== "MANAGER") {
+    throw new AppError(400, "The selected branch manager must have the Branch Manager role");
+  }
+}
 
 export async function listBranches(query: ListBranchQuery) {
   const where: Prisma.BranchWhereInput = {};
@@ -44,13 +58,16 @@ export async function getBranchById(id: string) {
 }
 
 export async function createBranch(input: CreateBranchInput) {
+  await assertBranchManager(input.managerId);
   const branch = await prisma.branch.create({
     data: {
       name: input.name,
       address: input.address,
       city: input.city,
       phone: input.phone,
-      branchManager: input.branchManager,
+      // A linked manager replaces the legacy free-text name.
+      branchManager: input.managerId ? null : input.branchManager,
+      managerId: input.managerId,
       operatingHours: input.operatingHours,
       isActive: input.isActive ?? true,
     },
@@ -68,9 +85,11 @@ export async function createBranch(input: CreateBranchInput) {
 export async function updateBranch(id: string, input: UpdateBranchInput) {
   const before = await prisma.branch.findUnique({ where: { id } });
   if (!before) throw new AppError(404, "Branch not found");
+  await assertBranchManager(input.managerId);
   const branch = await prisma.branch.update({
     where: { id },
-    data: input,
+    // A linked manager replaces the legacy free-text name.
+    data: input.managerId ? { ...input, branchManager: null } : input,
     include: branchWithCounts,
   });
   await logAudit({

@@ -16,6 +16,8 @@ export const createBranchSchema = z.object({
     .max(100)
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Employee profile of the Branch Manager account assigned to this branch; null clears it.
+  managerId: z.string().uuid("Invalid branch manager").nullable().optional(),
   operatingHours: z
     .string()
     .trim()
